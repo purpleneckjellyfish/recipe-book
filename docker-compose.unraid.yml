@@ -1,6 +1,6 @@
 # Unraid / production Compose
 #
-# 1. Replace YOUR_GITHUB_USERNAME with your GitHub username (lowercase).
+# 1. Image is set for GitHub user purpleneckjellyfish.
 # 2. Create folders:
 #      /mnt/user/appdata/recipe-book/pg
 #      /mnt/user/appdata/recipe-book/uploads
@@ -29,7 +29,7 @@ services:
 
   app:
     # After the first GitHub Actions build succeeds, this image exists:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/recipe-book:latest
+    image: ghcr.io/purpleneckjellyfish/recipe-book:latest
     container_name: recipe-book-app
     restart: unless-stopped
     depends_on:
