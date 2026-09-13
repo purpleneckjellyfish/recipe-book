@@ -11,7 +11,34 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Plain Node install/build first so failures show a clear npm log (not buried in Buildx).
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Next.js build
+        run: npm run build
+        env:
+          # Build-time placeholders only — runtime uses Unraid env
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+          BETTER_AUTH_SECRET: build-time-secret-not-used-in-prod-32c
+          BETTER_AUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,7 +71,8 @@ jobs:
         with:
           context: .
           push: true
+          # Avoid poisoned cache from earlier failed Alpine layers
+          no-cache: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: linux/amd64

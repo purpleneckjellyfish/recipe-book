@@ -1,38 +1,45 @@
-# Production image — Debian slim (Alpine npm/Prisma installs are flaky in CI)
+# Production image — Next.js standalone on Debian Bookworm
 
-FROM node:22-bookworm-slim AS deps
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+ENV NEXT_TELEMETRY_DISABLED=1
+
+FROM base AS deps
 COPY package.json package-lock.json ./
-# postinstall runs prisma generate — schema not present yet in this stage
-RUN npm ci --ignore-scripts
+# Schema must exist before npm ci because package.json postinstall runs prisma generate
+COPY prisma ./prisma
+RUN npm ci
 
-FROM node:22-bookworm-slim AS builder
-WORKDIR /app
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build"
+ENV BETTER_AUTH_SECRET="build-time-secret-not-used-in-prod-32c"
+ENV BETTER_AUTH_URL="http://localhost:3000"
+ENV NEXT_PUBLIC_APP_URL="http://localhost:3000"
 RUN npx prisma generate && npm run build
 
-FROM node:22-bookworm-slim AS runner
-WORKDIR /app
+FROM base AS runner
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
-  && rm -rf /var/lib/apt/lists/* \
-  && addgroup --system --gid 1001 nodejs \
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Prisma client + CLI for migrate deploy at container start
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
 USER nextjs
 EXPOSE 3000
-ENV PORT=3000
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
