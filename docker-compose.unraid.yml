@@ -1,0 +1,47 @@
+# Unraid / production Compose
+#
+# 1. Replace YOUR_GITHUB_USERNAME with your GitHub username (lowercase).
+# 2. Create folders:
+#      /mnt/user/appdata/recipe-book/pg
+#      /mnt/user/appdata/recipe-book/uploads
+# 3. Put a .env next to this file (see docs/UNRAID.md).
+# 4. docker compose -f docker-compose.unraid.yml pull && up -d
+#
+# Updating later: pull + up only. Never delete the pg/ or uploads/ folders.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: recipe-book-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recipe
+      POSTGRES_PASSWORD: recipe
+      POSTGRES_DB: recipe_book
+    volumes:
+      # YOUR ARCHIVE — do not delete this folder when updating
+      - /mnt/user/appdata/recipe-book/pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recipe -d recipe_book"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # After the first GitHub Actions build succeeds, this image exists:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/recipe-book:latest
+    container_name: recipe-book-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://recipe:recipe@db:5432/recipe_book?schema=public
+      UPLOADS_DIR: /data/uploads
+    ports:
+      - "3000:3000"
+    volumes:
+      # Recipe photos — do not delete when updating
+      - /mnt/user/appdata/recipe-book/uploads:/data/uploads
