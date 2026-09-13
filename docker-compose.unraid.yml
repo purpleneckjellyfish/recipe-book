@@ -1,13 +1,5 @@
-# Unraid / production Compose
-#
-# 1. Image is set for GitHub user purpleneckjellyfish.
-# 2. Create folders:
-#      /mnt/user/appdata/recipe-book/pg
-#      /mnt/user/appdata/recipe-book/uploads
-# 3. Put a .env next to this file (see docs/UNRAID.md).
-# 4. docker compose -f docker-compose.unraid.yml pull && up -d
-#
-# Updating later: pull + up only. Never delete the pg/ or uploads/ folders.
+# Recipe Book — paste this whole file into Unraid Compose Manager.
+# Edit ONLY the three lines marked CHANGE ME, then Compose Up.
 
 services:
   db:
@@ -19,29 +11,23 @@ services:
       POSTGRES_PASSWORD: recipe
       POSTGRES_DB: recipe_book
     volumes:
-      # YOUR ARCHIVE — do not delete this folder when updating
       - /mnt/user/appdata/recipe-book/pg:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U recipe -d recipe_book"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   app:
-    # After the first GitHub Actions build succeeds, this image exists:
     image: ghcr.io/purpleneckjellyfish/recipe-book:latest
     container_name: recipe-book-app
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
-    env_file:
-      - .env
+      - db
+    ports:
+      - "3000:3000"
     environment:
       DATABASE_URL: postgresql://recipe:recipe@db:5432/recipe_book?schema=public
       UPLOADS_DIR: /data/uploads
-    ports:
-      - "3000:3000"
+      # CHANGE ME (1): long random string — run on Mac: openssl rand -hex 32
+      BETTER_AUTH_SECRET: replace-with-openssl-rand-hex-32
+      # CHANGE ME (2) and (3): your Unraid LAN IP, e.g. http://192.168.1.50:3000
+      BETTER_AUTH_URL: http://YOUR_UNRAID_IP:3000
+      NEXT_PUBLIC_APP_URL: http://YOUR_UNRAID_IP:3000
     volumes:
-      # Recipe photos — do not delete when updating
       - /mnt/user/appdata/recipe-book/uploads:/data/uploads
