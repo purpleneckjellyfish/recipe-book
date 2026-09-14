@@ -9,6 +9,7 @@ import {
   parseDateOnly,
   startOfWeek,
   toDateOnly,
+  weekDates,
 } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/session";
@@ -46,7 +47,7 @@ export async function generateShoppingList(weekStartIso?: string) {
   const { household } = await requireHousehold();
   const { weekStart } = resolveShopWeek(household.weekStart, weekStartIso);
 
-  const plan = await prisma.mealPlan.findUnique({
+  let plan = await prisma.mealPlan.findUnique({
     where: { householdId_weekStart: { householdId: household.id, weekStart } },
     include: {
       slots: {
@@ -58,8 +59,35 @@ export async function generateShoppingList(weekStartIso?: string) {
     },
   });
 
+  // Create an empty week if needed so weekly pins can populate without a visit to Plan.
   if (!plan) {
-    throw new Error("No meal plan for this week — open Plan and add some meals first");
+    const mealTypes = await prisma.mealType.findMany({
+      where: { householdId: household.id, enabled: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    plan = await prisma.mealPlan.create({
+      data: {
+        householdId: household.id,
+        weekStart,
+        slots: {
+          create: weekDates(weekStart).flatMap((date) =>
+            mealTypes.map((mt) => ({
+              date,
+              mealTypeId: mt.id,
+              status: MealSlotStatus.RECIPE,
+            })),
+          ),
+        },
+      },
+      include: {
+        slots: {
+          include: {
+            recipe: { include: { ingredients: true } },
+          },
+        },
+        shoppingList: { include: { items: true } },
+      },
+    });
   }
 
   const pantry = await prisma.pantryStaple.findMany({
@@ -92,6 +120,11 @@ export async function generateShoppingList(weekStartIso?: string) {
     (line) => !isPantryMatch(line.name, stapleNames),
   );
 
+  const pinned = await prisma.pinnedShopItem.findMany({
+    where: { householdId: household.id },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+
   let list = plan.shoppingList;
   if (!list) {
     list = await prisma.shoppingList.create({
@@ -117,38 +150,76 @@ export async function generateShoppingList(weekStartIso?: string) {
 
   const prevByName = new Map(
     list.items
-      .filter((i) => i.source === "generated")
+      .filter((i) => i.source === "generated" || i.source === "pinned")
       .map((i) => [i.name.toLowerCase(), i]),
   );
 
   await prisma.shoppingListItem.deleteMany({
-    where: { shoppingListId: list.id, source: "generated" },
+    where: {
+      shoppingListId: list.id,
+      source: { in: ["generated", "pinned"] },
+    },
   });
 
-  if (aggregated.length > 0) {
-    await prisma.shoppingListItem.createMany({
-      data: aggregated.map((line, sortOrder) => {
-        const prev = prevByName.get(line.name.toLowerCase());
-        return {
-          shoppingListId: list!.id,
-          name: line.name,
-          quantity: line.quantity,
-          unit: line.unit,
-          note: line.note || null,
-          source: "generated",
-          sortOrder,
-          checked: prev?.checked ?? false,
-          alreadyHave: prev?.alreadyHave ?? false,
-          softDeleted: false,
-        };
-      }),
+  const generatedNames = new Set(
+    aggregated.map((line) => line.name.toLowerCase()),
+  );
+
+  const rows: {
+    shoppingListId: string;
+    name: string;
+    quantity: number | null;
+    unit: string | null;
+    note: string | null;
+    source: string;
+    sortOrder: number;
+    checked: boolean;
+    alreadyHave: boolean;
+    softDeleted: boolean;
+  }[] = [];
+
+  let sortOrder = 0;
+  for (const line of aggregated) {
+    const prev = prevByName.get(line.name.toLowerCase());
+    rows.push({
+      shoppingListId: list.id,
+      name: line.name,
+      quantity: line.quantity,
+      unit: line.unit,
+      note: line.note || null,
+      source: "generated",
+      sortOrder: sortOrder++,
+      checked: prev?.checked ?? false,
+      alreadyHave: prev?.alreadyHave ?? false,
+      softDeleted: false,
     });
+  }
+
+  for (const pin of pinned) {
+    if (generatedNames.has(pin.name.toLowerCase())) continue;
+    const prev = prevByName.get(pin.name.toLowerCase());
+    rows.push({
+      shoppingListId: list.id,
+      name: pin.name,
+      quantity: pin.quantity == null ? null : Number(pin.quantity.toString()),
+      unit: pin.unit,
+      note: "Weekly pin",
+      source: "pinned",
+      sortOrder: sortOrder++,
+      checked: prev?.checked ?? false,
+      alreadyHave: prev?.alreadyHave ?? false,
+      softDeleted: false,
+    });
+  }
+
+  if (rows.length > 0) {
+    await prisma.shoppingListItem.createMany({ data: rows });
   }
 
   revalidatePath("/shop");
   return {
     listId: list.id,
-    itemCount: aggregated.length,
+    itemCount: rows.length,
     mealCount: cookSlots.length,
   };
 }

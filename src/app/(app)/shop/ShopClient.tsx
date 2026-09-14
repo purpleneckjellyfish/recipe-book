@@ -108,7 +108,7 @@ export function ShopClient({
     <div className="space-y-6">
       <section className="animate-rise">
         <p className="chip mb-3">Supermarket mode</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">
           Shopping list
         </h1>
       </section>
@@ -146,22 +146,24 @@ export function ShopClient({
         <button
           type="button"
           className="btn btn-primary text-sm"
-          disabled={pending || !hasPlan}
+          disabled={pending}
           onClick={() =>
             run(async () => {
               const result = await generateShoppingList(weekStart);
               setToast(
                 result.itemCount > 0
-                  ? `Added ${result.itemCount} items from ${result.mealCount} meals`
+                  ? result.mealCount > 0
+                    ? `Added ${result.itemCount} items from ${result.mealCount} meals`
+                    : `Added ${result.itemCount} weekly pin${result.itemCount === 1 ? "" : "s"}`
                   : result.mealCount === 0
-                    ? "No meals on this week’s plan yet"
+                    ? "Nothing to add — plan meals, or pin weekly staples in Settings"
                     : "Meals found but nothing left after pantry staples — check Plan",
               );
               setTimeout(() => setToast(null), 4500);
             })
           }
         >
-          {listId ? "Refresh from plan" : "Generate from plan"}
+          {listId ? "Refresh list" : "Generate list"}
         </button>
         {listId ? (
           <button
@@ -177,23 +179,15 @@ export function ShopClient({
         ) : null}
       </div>
 
-      {!hasPlan ? (
-        <div className="surface rounded-[1.5rem] p-8 text-center">
-          <p className="font-display text-2xl font-bold">No plan for this week</p>
-          <p className="mt-2 text-[var(--ink-soft)]">
-            Build a meal plan for <strong>{weekLabel}</strong>, then generate
-            your list.
-          </p>
-          <Link href={`/plan?week=${weekStart}`} className="btn btn-primary mt-5">
-            Open plan
-          </Link>
-        </div>
-      ) : null}
-
-      {hasPlan && plannedMealCount === 0 ? (
+      {!hasPlan || plannedMealCount === 0 ? (
         <p className="rounded-2xl bg-[rgba(212,120,74,0.12)] px-4 py-3 text-sm">
-          This week’s plan has no recipes yet — add meals on Plan, then generate
-          the list.
+          {plannedMealCount === 0
+            ? "No recipes on this week’s plan yet — generate still pulls in weekly pins from Settings, or "
+            : "No plan for this week yet — generate still pulls in weekly pins from Settings, or "}
+          <Link href={`/plan?week=${weekStart}`} className="font-semibold underline">
+            add meals on Plan
+          </Link>
+          .
         </p>
       ) : null}
 
@@ -348,7 +342,7 @@ export function ShopClient({
       </section>
 
       {toast ? (
-        <div className="fixed bottom-5 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 rounded-full bg-[var(--leaf-deep)] px-4 py-2 text-center text-sm font-semibold text-white shadow-lg">
+        <div className="fixed bottom-[calc(var(--mobile-tab-height)+var(--safe-bottom)+0.75rem)] left-1/2 z-50 max-w-[90vw] -translate-x-1/2 rounded-full bg-[var(--leaf-deep)] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg md:bottom-5">
           {toast}
         </div>
       ) : null}
@@ -378,7 +372,7 @@ function ItemRow({
 
   return (
     <div
-      className={`flex items-start gap-3 rounded-2xl border border-[var(--line)] bg-white/60 px-3 py-3 transition ${
+      className={`flex items-center gap-2 rounded-2xl border border-[var(--line)] bg-white/60 px-2 py-2 transition sm:gap-3 sm:px-3 sm:py-3 ${
         grey ? "bg-white/35" : ""
       }`}
     >
@@ -387,23 +381,33 @@ function ItemRow({
         aria-label="Toggle got it"
         disabled={pending}
         onClick={onCheck}
-        className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border ${
+        className={`touch-target grid size-11 shrink-0 place-items-center rounded-xl border sm:size-10 ${
           item.checked || item.alreadyHave
             ? "border-[var(--leaf)] bg-[var(--leaf-soft)]"
             : "border-[var(--line)] bg-white"
         }`}
       >
         {(item.checked || item.alreadyHave) && (
-          <span className="text-xs font-bold text-[var(--leaf-deep)]">✓</span>
+          <span className="text-sm font-bold text-[var(--leaf-deep)]">✓</span>
         )}
       </button>
-      <div className="min-w-0 flex-1">
-        <p className={`font-semibold ${grey ? "line-through" : ""}`}>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onCheck}
+        className="min-w-0 flex-1 py-2 text-left touch-manipulation"
+      >
+        <p className={`text-base font-semibold leading-snug ${grey ? "line-through" : ""}`}>
           {qty ? <span className="text-[var(--leaf-deep)]">{qty} </span> : null}
           {item.name}
           {item.source === "custom" ? (
             <span className="ml-2 text-xs font-medium text-[var(--ink-soft)]">
               custom
+            </span>
+          ) : null}
+          {item.source === "pinned" ? (
+            <span className="ml-2 text-xs font-medium text-[var(--ink-soft)]">
+              weekly
             </span>
           ) : null}
         </p>
@@ -413,11 +417,11 @@ function ItemRow({
         {item.alreadyHave ? (
           <p className="text-xs font-medium text-[var(--ink-soft)]">Already have</p>
         ) : null}
-      </div>
+      </button>
       <div className="flex shrink-0 flex-col gap-1">
         <button
           type="button"
-          className="text-xs font-semibold text-[var(--ink-soft)]"
+          className="touch-target rounded-lg px-2 text-xs font-semibold text-[var(--ink-soft)] sm:px-1"
           disabled={pending}
           onClick={onHave}
         >
@@ -425,7 +429,7 @@ function ItemRow({
         </button>
         <button
           type="button"
-          className="text-xs font-semibold text-[var(--bloom)]"
+          className="touch-target rounded-lg px-2 text-xs font-semibold text-[var(--bloom)] sm:px-1"
           disabled={pending}
           onClick={onDelete}
         >

@@ -15,10 +15,12 @@ export default async function AppLayout({
         householdName={household.name}
         userName={session.user.name}
       />
-      <div className="mx-auto flex max-w-6xl justify-end px-4 pt-3 sm:px-6">
+      <div className="mx-auto hidden max-w-6xl justify-end px-4 pt-3 sm:px-6 md:flex">
         <SignOutButton />
       </div>
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6">{children}</main>
+      <main className="app-main mx-auto max-w-6xl px-4 pt-3 sm:px-6 sm:pt-4">
+        {children}
+      </main>
     </div>
   );
 }

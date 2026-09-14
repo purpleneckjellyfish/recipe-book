@@ -115,50 +115,56 @@ export function PlanClient({
             Fills unpinned empty slots. Skips recipes used in the last N weeks
             unless marked OK to repeat.
           </p>
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <div>
-              <label className="label">Vegetarian meals</label>
-              <input
-                className="field w-24"
-                type="number"
-                min={0}
-                value={vegetarian}
-                onChange={(e) => setVegetarian(Number(e.target.value))}
-              />
+          <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-end">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:items-end sm:gap-3">
+              <div className="min-w-0">
+                <label className="label">Vegetarian meals</label>
+                <input
+                  className="field w-full sm:w-24"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={vegetarian}
+                  onChange={(e) => setVegetarian(Number(e.target.value))}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="label">Fish meals</label>
+                <input
+                  className="field w-full sm:w-24"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={fish}
+                  onChange={(e) => setFish(Number(e.target.value))}
+                />
+              </div>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
+                <label className="label">Avoid last N weeks</label>
+                <input
+                  className="field w-full sm:w-24"
+                  type="number"
+                  min={0}
+                  max={8}
+                  inputMode="numeric"
+                  value={avoidLastWeeks}
+                  onChange={(e) => setAvoidLastWeeks(Number(e.target.value))}
+                />
+              </div>
             </div>
-            <div>
-              <label className="label">Fish meals</label>
-              <input
-                className="field w-24"
-                type="number"
-                min={0}
-                value={fish}
-                onChange={(e) => setFish(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="label">Avoid last N weeks</label>
-              <input
-                className="field w-24"
-                type="number"
-                min={0}
-                max={8}
-                value={avoidLastWeeks}
-                onChange={(e) => setAvoidLastWeeks(Number(e.target.value))}
-              />
-            </div>
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <label className="flex min-h-[2.75rem] items-center gap-2 text-sm font-medium">
               <input
                 type="checkbox"
                 checked={preferVeg}
                 onChange={(e) => setPreferVeg(e.target.checked)}
-                className="accent-[var(--leaf-deep)]"
+                className="size-5 accent-[var(--leaf-deep)]"
               />
               Prefer higher “5 a day”
             </label>
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary w-full sm:w-auto"
               disabled={pending}
               onClick={() =>
                 run(() =>
@@ -176,12 +182,13 @@ export function PlanClient({
             </button>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost w-full sm:w-auto"
               disabled={pending}
               onClick={() => run(() => clearUnpinned(weekStart))}
             >
               Clear unpinned
             </button>
+            </div>
           </div>
         </section>
       ) : (
@@ -208,7 +215,7 @@ export function PlanClient({
               .map((s) => (
                 <label
                   key={s.id}
-                  className={`cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium ${
+                  className={`cursor-pointer rounded-full px-3 py-2.5 text-sm font-medium touch-manipulation min-h-[2.5rem] ${
                     batchTargets.includes(s.id)
                       ? "bg-[var(--leaf-deep)] text-white"
                       : "bg-white/70"
@@ -377,10 +384,10 @@ export function PlanClient({
                             </option>
                           ))}
                         </select>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1.5">
                           <button
                             type="button"
-                            className="rounded-full bg-[var(--mist)] px-2 py-1 text-[0.65rem] font-bold"
+                            className="rounded-full bg-[var(--mist)] px-3 py-2 text-xs font-bold touch-manipulation min-h-[2.5rem]"
                             disabled={pending}
                             onClick={() => run(() => togglePin(slot.id))}
                           >
@@ -388,7 +395,7 @@ export function PlanClient({
                           </button>
                           <button
                             type="button"
-                            className="rounded-full bg-[var(--mist)] px-2 py-1 text-[0.65rem] font-bold"
+                            className="rounded-full bg-[var(--mist)] px-3 py-2 text-xs font-bold touch-manipulation min-h-[2.5rem]"
                             disabled={pending}
                             onClick={() =>
                               run(async () => {
@@ -405,7 +412,7 @@ export function PlanClient({
                           {slot.recipeId && !isLeftover && !isSkip ? (
                             <button
                               type="button"
-                              className="rounded-full bg-[var(--leaf-soft)] px-2 py-1 text-[0.65rem] font-bold text-[var(--leaf-deep)]"
+                              className="rounded-full bg-[var(--leaf-soft)] px-3 py-2 text-xs font-bold text-[var(--leaf-deep)] touch-manipulation min-h-[2.5rem]"
                               disabled={pending}
                               onClick={() => {
                                 setBatchCookId(slot.id);
@@ -418,7 +425,7 @@ export function PlanClient({
                           ) : null}
                           <button
                             type="button"
-                            className="rounded-full px-2 py-1 text-[0.65rem] font-bold text-[var(--ink-soft)]"
+                            className="rounded-full px-3 py-2 text-xs font-bold text-[var(--ink-soft)] touch-manipulation min-h-[2.5rem]"
                             onClick={() => setEditingSlotId(null)}
                           >
                             Done

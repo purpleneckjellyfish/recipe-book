@@ -94,7 +94,7 @@ export function CustomShopItemInput({
                 <li key={item} role="option" aria-selected={i === highlight}>
                   <button
                     type="button"
-                    className={`block w-full px-3 py-2 text-left text-sm font-medium ${
+                    className={`block w-full px-3 py-3 text-left text-sm font-medium touch-manipulation min-h-[2.75rem] ${
                       i === highlight
                         ? "bg-[var(--leaf-soft)] text-[var(--leaf-deep)]"
                         : "hover:bg-[var(--mist)]"

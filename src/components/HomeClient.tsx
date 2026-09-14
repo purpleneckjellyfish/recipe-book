@@ -335,7 +335,7 @@ function ArchivePickCard({
                   key={d.iso}
                   type="button"
                   disabled={pending}
-                  className="rounded-xl bg-[var(--mist)] px-2 py-2 text-left text-xs font-semibold hover:bg-[var(--leaf-soft)]"
+                  className="rounded-xl bg-[var(--mist)] px-3 py-3 text-left text-sm font-semibold touch-manipulation min-h-[2.75rem] hover:bg-[var(--leaf-soft)]"
                   onClick={() =>
                     startTransition(async () => {
                       await pinArchiveRecipeToDate(recipe.id, d.iso);

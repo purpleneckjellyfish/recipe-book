@@ -14,6 +14,9 @@
   --radius: 1.25rem;
   --background: var(--paper);
   --foreground: var(--ink);
+  --mobile-tab-height: 3.25rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
@@ -42,12 +45,15 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   color: var(--ink);
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(197, 221, 211, 0.55), transparent 55%),
     radial-gradient(900px 500px at 100% 0%, rgba(212, 120, 74, 0.12), transparent 45%),
     linear-gradient(180deg, #eef4f0 0%, var(--paper) 42%, #e7eee9 100%);
   font-family: var(--font-figtree), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
 }
 
 body::before {
@@ -89,11 +95,13 @@ a {
   gap: 0.5rem;
   border-radius: 999px;
   padding: 0.75rem 1.25rem;
+  min-height: 2.75rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
   border: 1px solid transparent;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .btn:hover {
@@ -130,9 +138,17 @@ a {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
   padding: 0.8rem 1rem;
+  min-height: 2.75rem;
   color: var(--ink);
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease;
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .field {
+    font-size: 16px;
+  }
 }
 
 .field:focus {
@@ -158,6 +174,34 @@ a {
   color: var(--leaf-deep);
   font-size: 0.78rem;
   font-weight: 600;
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .chip {
+    min-height: 2.5rem;
+    padding-inline: 0.85rem;
+  }
+}
+
+.app-main {
+  padding-bottom: calc(var(--mobile-tab-height) + var(--safe-bottom) + 1.25rem);
+}
+
+@media (min-width: 768px) {
+  .app-main {
+    padding-bottom: 4rem;
+  }
+}
+
+.mobile-tab-bar {
+  padding-bottom: var(--safe-bottom);
+}
+
+.touch-target {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  touch-action: manipulation;
 }
 
 @keyframes rise-in {

@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Recipe Book",
     short_name: "Recipe Book",
     description: "Household recipe archive, meal planner, and shopping list",
-    start_url: "/library",
+    start_url: "/home",
     display: "standalone",
     background_color: "#e8efeb",
     theme_color: "#1e4a3c",

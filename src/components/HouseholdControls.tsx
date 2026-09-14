@@ -4,10 +4,12 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addPantryStaple,
+  addPinnedShopItem,
   addMealType,
   createInvite,
   joinWithInvite,
   removePantryStaple,
+  removePinnedShopItem,
   renameHousehold,
   setMealTypeEnabled,
 } from "@/app/(app)/household/actions";
@@ -16,12 +18,19 @@ export function HouseholdControls({
   isOwner,
   householdName,
   pantry,
+  pinnedShop,
   invites,
   mealTypes,
 }: {
   isOwner: boolean;
   householdName: string;
   pantry: { id: string; name: string }[];
+  pinnedShop: {
+    id: string;
+    name: string;
+    quantity: number | null;
+    unit: string | null;
+  }[];
   invites: { id: string; code: string; expiresAt: string | null }[];
   mealTypes: { id: string; name: string; enabled: boolean }[];
 }) {
@@ -31,6 +40,7 @@ export function HouseholdControls({
   const [joinCode, setJoinCode] = useState("");
   const [name, setName] = useState(householdName);
   const [staple, setStaple] = useState("");
+  const [pinName, setPinName] = useState("");
   const [mealName, setMealName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -51,13 +61,17 @@ export function HouseholdControls({
         <div className="surface rounded-[1.5rem] p-5">
           <h2 className="font-display text-xl font-bold">Household name</h2>
           <form
-            className="mt-3 flex gap-2"
+            className="mt-3 flex flex-col gap-2 sm:flex-row"
             onSubmit={(e: FormEvent) => {
               e.preventDefault();
               refresh(() => renameHousehold(name));
             }}
           >
-            <input className="field" value={name} onChange={(e) => setName(e.target.value)} />
+            <input
+              className="field"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
             <button className="btn btn-primary shrink-0" disabled={pending}>
               Save
             </button>
@@ -101,7 +115,7 @@ export function HouseholdControls({
         ) : null}
 
         <form
-          className="mt-4 flex gap-2 border-t border-[var(--line)] pt-4"
+          className="mt-4 flex flex-col gap-2 border-t border-[var(--line)] pt-4 sm:flex-row"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             refresh(async () => {
@@ -144,7 +158,7 @@ export function HouseholdControls({
               {isOwner ? (
                 <button
                   type="button"
-                  className="text-xs font-semibold text-[var(--leaf-deep)]"
+                  className="touch-target rounded-lg px-3 text-sm font-semibold text-[var(--leaf-deep)]"
                   disabled={pending}
                   onClick={() =>
                     refresh(() => setMealTypeEnabled(m.id, !m.enabled))
@@ -158,7 +172,7 @@ export function HouseholdControls({
         </ul>
         {isOwner ? (
           <form
-            className="mt-3 flex gap-2"
+            className="mt-3 flex flex-col gap-2 sm:flex-row"
             onSubmit={(e: FormEvent) => {
               e.preventDefault();
               refresh(async () => {
@@ -181,9 +195,59 @@ export function HouseholdControls({
       </div>
 
       <div className="surface rounded-[1.5rem] p-5">
-        <h2 className="font-display text-xl font-bold">Pantry staples</h2>
+        <h2 className="font-display text-xl font-bold">Weekly shopping pins</h2>
+        <p className="mt-1 text-sm text-[var(--ink-soft)]">
+          Always added when you generate a shopping list — milk, cat food,
+          bin liners, whatever you buy most weeks.
+        </p>
         <form
-          className="mt-3 flex gap-2"
+          className="mt-3 flex flex-col gap-2 sm:flex-row"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            refresh(async () => {
+              await addPinnedShopItem(pinName);
+              setPinName("");
+            });
+          }}
+        >
+          <input
+            className="field"
+            placeholder="e.g. Milk"
+            value={pinName}
+            onChange={(e) => setPinName(e.target.value)}
+          />
+          <button className="btn btn-primary shrink-0" disabled={pending}>
+            Pin
+          </button>
+        </form>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {pinnedShop.length === 0 ? (
+            <p className="text-sm text-[var(--ink-soft)]">No pins yet.</p>
+          ) : (
+            pinnedShop.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="chip"
+                title="Remove pin"
+                disabled={pending}
+                onClick={() => refresh(() => removePinnedShopItem(p.id))}
+              >
+                {p.name} ×
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="surface rounded-[1.5rem] p-5">
+        <h2 className="font-display text-xl font-bold">Pantry staples</h2>
+        <p className="mt-1 text-sm text-[var(--ink-soft)]">
+          Left off the shopping list because you usually have them (salt, oil,
+          spices). Opposite of weekly pins.
+        </p>
+        <form
+          className="mt-3 flex flex-col gap-2 sm:flex-row"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             refresh(async () => {

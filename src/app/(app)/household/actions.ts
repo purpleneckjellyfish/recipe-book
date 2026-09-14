@@ -5,6 +5,12 @@ import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold, requireSession } from "@/lib/session";
 
+function revalidateSettings() {
+  revalidatePath("/settings");
+  revalidatePath("/household");
+  revalidatePath("/shop");
+}
+
 export async function createInvite() {
   const { membership, household } = await requireHousehold();
   if (membership.role !== "OWNER") {
@@ -18,7 +24,7 @@ export async function createInvite() {
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
     },
   });
-  revalidatePath("/household");
+  revalidateSettings();
   return code;
 }
 
@@ -51,7 +57,7 @@ export async function joinWithInvite(code: string) {
     });
   }
 
-  revalidatePath("/household");
+  revalidateSettings();
   revalidatePath("/library");
   return invite.householdId;
 }
@@ -63,7 +69,7 @@ export async function renameHousehold(name: string) {
     where: { id: household.id },
     data: { name: name.trim() || household.name },
   });
-  revalidatePath("/household");
+  revalidateSettings();
 }
 
 export async function addPantryStaple(name: string) {
@@ -77,7 +83,7 @@ export async function addPantryStaple(name: string) {
     create: { householdId: household.id, name: trimmed },
     update: {},
   });
-  revalidatePath("/household");
+  revalidateSettings();
 }
 
 export async function removePantryStaple(id: string) {
@@ -85,7 +91,37 @@ export async function removePantryStaple(id: string) {
   await prisma.pantryStaple.deleteMany({
     where: { id, householdId: household.id },
   });
-  revalidatePath("/household");
+  revalidateSettings();
+}
+
+export async function addPinnedShopItem(name: string) {
+  const { household } = await requireHousehold();
+  const trimmed = name.trim().replace(/\s+/g, " ");
+  if (!trimmed) return;
+  const max = await prisma.pinnedShopItem.aggregate({
+    where: { householdId: household.id },
+    _max: { sortOrder: true },
+  });
+  await prisma.pinnedShopItem.upsert({
+    where: {
+      householdId_name: { householdId: household.id, name: trimmed },
+    },
+    create: {
+      householdId: household.id,
+      name: trimmed,
+      sortOrder: (max._max.sortOrder ?? 0) + 1,
+    },
+    update: {},
+  });
+  revalidateSettings();
+}
+
+export async function removePinnedShopItem(id: string) {
+  const { household } = await requireHousehold();
+  await prisma.pinnedShopItem.deleteMany({
+    where: { id, householdId: household.id },
+  });
+  revalidateSettings();
 }
 
 export async function addMealType(name: string) {
@@ -114,7 +150,7 @@ export async function addMealType(name: string) {
     },
     update: { name: trimmed, enabled: true },
   });
-  revalidatePath("/household");
+  revalidateSettings();
   revalidatePath("/plan");
 }
 
@@ -127,6 +163,6 @@ export async function setMealTypeEnabled(id: string, enabled: boolean) {
     where: { id, householdId: household.id },
     data: { enabled },
   });
-  revalidatePath("/household");
+  revalidateSettings();
   revalidatePath("/plan");
 }

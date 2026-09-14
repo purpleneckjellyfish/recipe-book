@@ -90,6 +90,7 @@ model Household {
   tags          Tag[]
   recipes       Recipe[]
   pantryStaples PantryStaple[]
+  pinnedShopItems PinnedShopItem[]
   mealTypes     MealType[]
   mealPlans     MealPlan[]
   shoppingLists ShoppingList[]
@@ -261,6 +262,20 @@ model PantryStaple {
   @@unique([householdId, name])
 }
 
+/** Always added to each week’s shopping list (milk, cat food, etc.). */
+model PinnedShopItem {
+  id          String  @id @default(cuid())
+  householdId String
+  name        String
+  quantity    Decimal? @db.Decimal(12, 3)
+  unit        String?
+  sortOrder   Int     @default(0)
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, name])
+}
+
 model MealType {
   id          String  @id @default(cuid())
   householdId String
@@ -334,7 +349,7 @@ model ShoppingListItem {
   name           String
   quantity       Decimal? @db.Decimal(12, 3)
   unit           String?
-  source         String   @default("generated") // generated | custom
+  source         String   @default("generated") // generated | custom | pinned
   alreadyHave    Boolean  @default(false)
   checked        Boolean  @default(false)
   softDeleted    Boolean  @default(false)
