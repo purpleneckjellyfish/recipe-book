@@ -35,11 +35,13 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Prisma client + CLI for migrate deploy at container start
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Install full Prisma CLI (with transitive deps like `effect`) for migrate deploy.
+# Partial COPY of node_modules/prisma was missing those packages and crash-looped.
+RUN npm install prisma@6.19.3 --omit=dev --no-save \
+  && npx prisma generate \
+  && chown -R nextjs:nodejs /app/node_modules /app/package.json
 
 USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
