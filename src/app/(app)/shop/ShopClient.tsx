@@ -295,7 +295,10 @@ export function ShopClient({
               setToast(
                 result.itemCount > 0
                   ? result.mealCount > 0
-                    ? `Added ${result.itemCount} items from ${result.mealCount} meals`
+                    ? `Added ${result.itemCount} items from ${result.mealCount} meals` +
+                      (result.quickMealResolved
+                        ? ` (incl. ${result.quickMealResolved} quick meal${result.quickMealResolved === 1 ? "" : "s"})`
+                        : "")
                     : `Added ${result.itemCount} weekly pin${result.itemCount === 1 ? "" : "s"}`
                   : result.mealCount === 0
                     ? "Nothing to add — plan meals, or pin weekly staples in Settings"

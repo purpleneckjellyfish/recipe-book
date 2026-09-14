@@ -167,6 +167,55 @@ export function isImportAiConfigured() {
   return !!process.env.IMPORT_API_KEY;
 }
 
+/** Rewrite awkward meal-kit ingredient lines into "qty unit name". */
+export async function normalizeIngredientLinesWithAi(
+  lines: string[],
+): Promise<string[] | null> {
+  if (!apiConfig().key || lines.length === 0) return null;
+
+  try {
+    const json = await chatCompletions(
+      {
+        model: process.env.IMPORT_MODEL || "gpt-4o-mini",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: `You normalise UK recipe ingredient lines for a shopping list.
+Return ONLY JSON: { "lines": string[] } with the SAME number of entries, same order.
+Each output line must be: "<quantity> <unit> <ingredient name>" or just "<ingredient name>" if no amount.
+Use metric (g, ml, tsp, tbsp). Expand packs using the real amount when given in brackets, e.g.
+"1 pot of double cream (227ml)" → "227 ml double cream".
+"1 320g chicken thighs" → "320 g chicken thighs".
+"2 80g mangetout" → "160 g mangetout".
+Do not invent ingredients. Keep names recognisable for a supermarket.`,
+          },
+          {
+            role: "user",
+            content: JSON.stringify({ lines }),
+          },
+        ],
+      },
+      30000,
+    );
+    if (!json) return null;
+    const content = json.choices?.[0]?.message?.content;
+    if (!content) return null;
+    const parsed = JSON.parse(content) as { lines?: unknown };
+    if (!Array.isArray(parsed.lines) || parsed.lines.length !== lines.length) {
+      return null;
+    }
+    return parsed.lines.map((l, i) => {
+      const s = String(l || "").trim();
+      return s || lines[i];
+    });
+  } catch (err) {
+    console.error("AI ingredient normalize failed", err);
+    return null;
+  }
+}
+
 export async function suggestRecipeMeta(input: {
   title: string;
   ingredients: string[];

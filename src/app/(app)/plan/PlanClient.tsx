@@ -394,7 +394,7 @@ export function PlanClient({
                           {noteText}
                         </p>
                         <p className="mt-auto pt-2 text-[0.65rem] text-[var(--ink-soft)]">
-                          Plan only · tap to edit
+                          Quick meal · shop guesses staples
                         </p>
                       </button>
                     ) : (
@@ -448,8 +448,10 @@ export function PlanClient({
                             </button>
                           </form>
                           <p className="mt-1 text-[0.65rem] text-[var(--ink-soft)]">
-                            Stays on the plan only — not added to the library or
-                            shopping list.
+                            Shopping list will guess staples for common meals
+                            (jackets, pasta, pizza…). Tip:{" "}
+                            <code className="text-xs">jackets: potatoes, cheese, beans</code>{" "}
+                            to list exact items.
                           </p>
                         </div>
                         <select

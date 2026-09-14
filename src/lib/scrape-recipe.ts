@@ -1,4 +1,8 @@
 import * as cheerio from "cheerio";
+import {
+  ingredientLineLooksMessy,
+  normalizeMealKitIngredientLine,
+} from "@/lib/ingredients";
 
 export type ScrapedRecipe = {
   title: string;
@@ -113,6 +117,113 @@ function isBbcHost(hostname: string) {
     h === "bbcgoodfood.com" ||
     h.endsWith(".bbcgoodfood.com")
   );
+}
+
+function isGoustoHost(hostname: string) {
+  const h = hostname.toLowerCase();
+  return h === "gousto.co.uk" || h.endsWith(".gousto.co.uk");
+}
+
+/** Gousto cookbook URLs end with the recipe slug. */
+function goustoSlugFromUrl(url: URL): string | null {
+  const parts = url.pathname.split("/").filter(Boolean);
+  const slug = parts[parts.length - 1]?.trim();
+  if (!slug || slug === "cookbook" || slug === "recipes") return null;
+  return slug;
+}
+
+function stripHtml(text: string) {
+  return text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+type GoustoApiEntry = {
+  title?: string;
+  description?: string;
+  prep_times?: { for_2?: number; for_4?: number };
+  ingredients?: { label?: string | null; name?: string | null }[];
+  cooking_instructions?: { instruction?: string; order?: number }[];
+  basics?: { title?: string }[];
+  media?: { images?: { image?: string; width?: number }[] };
+  seo?: { open_graph_image?: string; canonical?: string };
+};
+
+async function scrapeGoustoApi(
+  pageUrl: string,
+  slug: string,
+): Promise<ScrapedRecipe | null> {
+  const apiUrl = `https://production-api.gousto.co.uk/cmsreadbroker/v1/recipe/${encodeURIComponent(slug)}`;
+  const res = await fetch(apiUrl, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      Referer: "https://www.gousto.co.uk/",
+    },
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as {
+    status?: string;
+    data?: { entry?: GoustoApiEntry };
+  };
+  const entry = json.data?.entry;
+  if (!entry?.title) return null;
+
+  const ingredients = (entry.ingredients || [])
+    .map((ing) => String(ing.label || ing.name || "").trim())
+    .filter(Boolean)
+    .map(normalizeMealKitIngredientLine);
+
+  // AI cleanup for any lines that still look like meal-kit mush
+  let finalIngredients = ingredients;
+  if (ingredients.some(ingredientLineLooksMessy)) {
+    try {
+      const { normalizeIngredientLinesWithAi } = await import("@/lib/ai-import");
+      const aiLines = await normalizeIngredientLinesWithAi(ingredients);
+      if (aiLines?.length) finalIngredients = aiLines.map(normalizeMealKitIngredientLine);
+    } catch {
+      /* keep deterministic lines */
+    }
+  }
+
+  const steps = [...(entry.cooking_instructions || [])]
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((s) => stripHtml(String(s.instruction || "")))
+    .filter(Boolean);
+
+  const images = entry.media?.images || [];
+  const largest = [...images].sort(
+    (a, b) => (b.width || 0) - (a.width || 0),
+  )[0]?.image;
+
+  const prep =
+    entry.prep_times?.for_2 ??
+    entry.prep_times?.for_4 ??
+    null;
+
+  return {
+    title: entry.title,
+    description: entry.description ? String(entry.description) : null,
+    servings: 2,
+    prepMinutes: typeof prep === "number" ? prep : null,
+    cookMinutes: null,
+    ingredients: finalIngredients,
+    steps,
+    imageUrl:
+      largest ||
+      entry.seo?.open_graph_image ||
+      null,
+    sourceUrl: entry.seo?.canonical || pageUrl,
+  };
 }
 
 function extractJsonLdRecipes(html: string): Record<string, unknown>[] {
@@ -319,6 +430,23 @@ export async function scrapeRecipeFromUrl(url: string): Promise<ScrapedRecipe> {
     throw new Error("That doesn’t look like a valid URL");
   }
 
+  // Gousto pages are JS-gated; use their public CMS API instead.
+  if (isGoustoHost(parsed.hostname)) {
+    const slug = goustoSlugFromUrl(parsed);
+    if (!slug) {
+      throw new Error(
+        "That Gousto link doesn’t look like a recipe page. Open a single recipe and copy its URL.",
+      );
+    }
+    const gousto = await scrapeGoustoApi(parsed.toString(), slug);
+    if (gousto && (gousto.ingredients.length || gousto.steps.length)) {
+      return gousto;
+    }
+    throw new Error(
+      "Couldn’t read that Gousto recipe. Check the link is a cookbook recipe page and try again.",
+    );
+  }
+
   const bbc = isBbcHost(parsed.hostname);
 
   const res = await fetch(parsed.toString(), {
@@ -336,7 +464,9 @@ export async function scrapeRecipeFromUrl(url: string): Promise<ScrapedRecipe> {
   });
 
   if (!res.ok) {
-    throw new Error(`Could not fetch URL (${res.status}). BBC pages sometimes block bots — try again or paste another link.`);
+    throw new Error(
+      `Could not fetch URL (${res.status}). Some sites block bots — try again or paste another link.`,
+    );
   }
 
   const html = await res.text();

@@ -1,36 +1,51 @@
+import { AdminUsersPanel } from "@/components/AdminUsersPanel";
 import { ExportLibraryButtons } from "@/components/ExportLibraryButtons";
 import { HouseholdControls } from "@/components/HouseholdControls";
 import { SignOutButton } from "@/components/SignOutButton";
+import { isAppAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/session";
 
 export default async function SettingsPage() {
   const { household, membership, session } = await requireHousehold();
+  const admin = isAppAdmin(session.user.email);
 
-  const [members, pantry, pinnedShop, mealTypes, invites] = await Promise.all([
-    prisma.householdMember.findMany({
-      where: { householdId: household.id },
-      include: { user: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.pantryStaple.findMany({
-      where: { householdId: household.id },
-      orderBy: { name: "asc" },
-    }),
-    prisma.pinnedShopItem.findMany({
-      where: { householdId: household.id },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    }),
-    prisma.mealType.findMany({
-      where: { householdId: household.id },
-      orderBy: { sortOrder: "asc" },
-    }),
-    prisma.householdInvite.findMany({
-      where: { householdId: household.id },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-  ]);
+  const [members, pantry, pinnedShop, mealTypes, invites, allUsers] =
+    await Promise.all([
+      prisma.householdMember.findMany({
+        where: { householdId: household.id },
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.pantryStaple.findMany({
+        where: { householdId: household.id },
+        orderBy: { name: "asc" },
+      }),
+      prisma.pinnedShopItem.findMany({
+        where: { householdId: household.id },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      }),
+      prisma.mealType.findMany({
+        where: { householdId: household.id },
+        orderBy: { sortOrder: "asc" },
+      }),
+      prisma.householdInvite.findMany({
+        where: { householdId: household.id },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      admin
+        ? prisma.user.findMany({
+            include: {
+              memberships: {
+                include: { household: true },
+                orderBy: { createdAt: "asc" },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([]),
+    ]);
 
   return (
     <div className="space-y-8">
@@ -44,6 +59,22 @@ export default async function SettingsPage() {
           one place so the rest of the app stays tidy.
         </p>
       </section>
+
+      {admin ? (
+        <AdminUsersPanel
+          viewerEmail={session.user.email}
+          users={allUsers.map((u) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            createdAt: u.createdAt.toISOString(),
+            kitchens: u.memberships.map((m) => ({
+              name: m.household.name,
+              role: m.role === "OWNER" ? "Owner" : "Member",
+            })),
+          }))}
+        />
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="surface animate-rise animate-rise-delay-1 rounded-[1.5rem] p-5">

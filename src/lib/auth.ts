@@ -1,8 +1,13 @@
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "./prisma";
 import { categoryCreateData } from "./categories";
+import {
+  gateSignUp,
+  takePendingInviteHousehold,
+} from "./signup-gate";
 
 const DEFAULT_MEAL_TYPES = [{ name: "Evening main", slug: "evening-main" }];
 
@@ -60,6 +65,23 @@ export async function bootstrapHousehold(userId: string, userName: string) {
   return household.id;
 }
 
+async function joinInvitedHousehold(userId: string, householdId: string) {
+  const existing = await prisma.householdMember.findUnique({
+    where: {
+      householdId_userId: { householdId, userId },
+    },
+  });
+  if (!existing) {
+    await prisma.householdMember.create({
+      data: {
+        householdId,
+        userId,
+        role: "MEMBER",
+      },
+    });
+  }
+}
+
 const trustedOrigins = originList(
   process.env.BETTER_AUTH_URL,
   process.env.NEXT_PUBLIC_APP_URL,
@@ -68,9 +90,7 @@ const trustedOrigins = originList(
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
-  // Public URL when behind Cloudflare; LAN IP is fine for local-only.
   baseURL: process.env.BETTER_AUTH_URL,
-  // Allow Cloudflare tunnel + LAN IP (comma-separated TRUSTED_ORIGINS).
   trustedOrigins,
   emailAndPassword: {
     enabled: true,
@@ -79,10 +99,34 @@ export const auth = betterAuth({
   user: {
     additionalFields: {},
   },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const email = String(ctx.body?.email || "");
+      const inviteCode = String(
+        (ctx.body as { inviteCode?: string } | undefined)?.inviteCode || "",
+      );
+      try {
+        await gateSignUp({ email, inviteCode });
+      } catch (e) {
+        throw new APIError("BAD_REQUEST", {
+          message:
+            e instanceof Error
+              ? e.message
+              : "Signup is invite-only",
+        });
+      }
+    }),
+  },
   databaseHooks: {
     user: {
       create: {
         after: async (user) => {
+          const invitedTo = takePendingInviteHousehold(user.email);
+          if (invitedTo) {
+            await joinInvitedHousehold(user.id, invitedTo);
+            return;
+          }
           await bootstrapHousehold(user.id, user.name || "Family");
         },
       },

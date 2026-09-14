@@ -37,6 +37,8 @@ services:
       IMPORT_MODEL: mistral-small-latest
       IMPORT_VISION_MODEL: pixtral-12b-2409
       BACKUPS_DIR: /data/backups
+      # CHANGE ME (5): app admin emails (comma-separated) — sees all users in Settings
+      ADMIN_EMAILS: davidpkemble@pm.me
     volumes:
       - /mnt/user/appdata/recipe-book/uploads:/data/uploads
       - /mnt/user/appdata/recipe-book/backups:/data/backups

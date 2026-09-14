@@ -5,7 +5,7 @@ import { formatQuantity, scaleQuantity } from "@/lib/scale";
 
 type Ingredient = {
   id: string;
-  quantity: { toString(): string } | number | null;
+  quantity: number | null;
   unit: string | null;
   name: string;
   note: string | null;
@@ -22,14 +22,10 @@ export function ServingScaler({
 
   const scaled = useMemo(
     () =>
-      ingredients.map((ing) => {
-        const qty =
-          ing.quantity == null ? null : Number(ing.quantity.toString());
-        return {
-          ...ing,
-          scaledQty: scaleQuantity(qty, baseServings, servings),
-        };
-      }),
+      ingredients.map((ing) => ({
+        ...ing,
+        scaledQty: scaleQuantity(ing.quantity, baseServings, servings),
+      })),
     [ingredients, baseServings, servings],
   );
 

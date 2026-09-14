@@ -203,6 +203,91 @@ export function parseIngredientLine(line: string, sortOrder = 0): ParsedIngredie
   };
 }
 
+const PACK_WORDS =
+  "pots?|packs?|bags?|punnets?|bunches?|sachets?|blocks?|tubs?|tins?|cans?|jars?|cartons?|cloves?|slices?";
+
+/**
+ * Meal-kit / Gousto-style lines → "qty unit name" our parser understands.
+ * e.g. "1 pot of double cream (227ml)" → "227 ml double cream"
+ *      "1 320g chicken thighs" → "320 g chicken thighs"
+ *      "2 80g mangetout" → "160 g mangetout"
+ *      "1 1 tbsp cornflour" → "1 tbsp cornflour"
+ */
+export function normalizeMealKitIngredientLine(line: string): string {
+  let s = line.replace(/\s+/g, " ").trim();
+  if (!s) return s;
+
+  // Prefer parenthetical quantity: "1 pot of double cream (227ml)"
+  const paren = s.match(
+    /^(.*?)\s*\((\d+[.,]?\d*)\s*(ml|millilitres?|g|grams?|kg|kilograms?|l|litres?|tsp|tbsp)\)\s*$/i,
+  );
+  if (paren) {
+    const qty = paren[2].replace(",", ".");
+    const unit = normalizeUnit(paren[3]);
+    let name = paren[1]
+      .replace(
+        new RegExp(
+          `^\\d+[.,]?\\d*\\s*(?:x\\s*)?(?:${PACK_WORDS})\\s+(?:of\\s+)?`,
+          "i",
+        ),
+        "",
+      )
+      .replace(/^\d+[.,]?\d*\s+/, "")
+      .trim();
+    if (!name) name = paren[1].trim();
+    return `${qty} ${unit} ${name}`.replace(/\s+/g, " ").trim();
+  }
+
+  // "1 320g British chicken" / "2 80g mangetout" → multiply when count > 1
+  const countSize = s.match(
+    /^(\d+)\s+(\d+[.,]?\d*)\s*(g|kg|ml|l)\b\s*(.+)$/i,
+  );
+  if (countSize) {
+    const count = Number(countSize[1]);
+    const each = Number(countSize[2].replace(",", "."));
+    const unit = normalizeUnit(countSize[3]);
+    const name = countSize[4].trim();
+    if (Number.isFinite(count) && Number.isFinite(each) && name) {
+      const total = count > 1 ? count * each : each;
+      return `${total} ${unit} ${name}`;
+    }
+  }
+
+  // "1 1 tbsp cornflour" / "1 ½ tsp chilli" — drop leading pack count of 1
+  const leadingOne = s.match(
+    /^1\s+((?:\d+[.,]?\d*|\d+\s*\/\s*\d+|[½⅓⅔¼¾])\s*(?:tbsp|tsp|g|ml|kg|l)\b.*)$/i,
+  );
+  if (leadingOne) return leadingOne[1].trim();
+
+  // "1 pot of X" / "2 sachets of Y" without paren — keep count, drop pack word
+  const packOf = s.match(
+    new RegExp(
+      `^(\\d+[.,]?\\d*)\\s+(?:${PACK_WORDS})\\s+(?:of\\s+)?(.+)$`,
+      "i",
+    ),
+  );
+  if (packOf) {
+    return `${packOf[1]} ${packOf[2].trim()}`.replace(/\s+/g, " ").trim();
+  }
+
+  // Ensure space between number and unit: "200g linguine" → "200 g linguine"
+  s = s.replace(
+    /^(\d+[.,]?\d*)\s*(g|kg|ml|l|tsp|tbsp)\b/i,
+    (_, n, u) => `${n} ${normalizeUnit(u)}`,
+  );
+
+  return s;
+}
+
+/** True when a line still looks like meal-kit mush after normalize. */
+export function ingredientLineLooksMessy(line: string): boolean {
+  const s = line.replace(/\s+/g, " ").trim();
+  if (/\(\d/.test(s)) return true;
+  if (/^\d+\s+\d+\s*(g|kg|ml|l|tbsp|tsp)\b/i.test(s)) return true;
+  if (new RegExp(`^\\d+\\s+(?:${PACK_WORDS})\\s+of\\b`, "i").test(s)) return true;
+  return false;
+}
+
 export function parseIngredientsText(raw: string): ParsedIngredient[] {
   return raw
     .split("\n")

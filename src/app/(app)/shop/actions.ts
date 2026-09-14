@@ -18,6 +18,10 @@ import {
   aggregateIngredients,
   isPantryMatch,
 } from "@/lib/shopping-aggregate";
+import {
+  expandQuickMealNote,
+  suggestShopLinesForQuickMeal,
+} from "@/lib/quick-meal-shop";
 
 /** Shop only supports last / this / next week — no free scrolling. */
 function resolveShopWeek(householdWeekStart: number, weekStartIso?: string) {
@@ -99,8 +103,19 @@ export async function generateShoppingList(weekStartIso?: string) {
     (s) => s.status === MealSlotStatus.RECIPE && s.recipeId && s.recipe,
   );
 
-  const rawLines: { name: string; quantity: number | null; unit: string | null }[] =
-    [];
+  const quickMealSlots = plan.slots.filter(
+    (s) =>
+      s.status === MealSlotStatus.RECIPE &&
+      !s.recipeId &&
+      !!s.notes?.trim(),
+  );
+
+  const rawLines: {
+    name: string;
+    quantity: number | null;
+    unit: string | null;
+    note?: string | null;
+  }[] = [];
 
   for (const slot of cookSlots) {
     const recipe = slot.recipe!;
@@ -112,6 +127,40 @@ export async function generateShoppingList(weekStartIso?: string) {
         name: ing.name,
         quantity: scaleQuantity(qty, recipe.servings, targetServings),
         unit: ing.unit,
+      });
+    }
+  }
+
+  let quickMealResolved = 0;
+  let quickMealUnmatched = 0;
+  for (const slot of quickMealSlots) {
+    const note = slot.notes!.trim();
+    let result = expandQuickMealNote(note);
+    if (result.mode === "unmatched") {
+      const aiItems = await suggestShopLinesForQuickMeal(note);
+      if (aiItems.length) {
+        result = { items: aiItems, mode: "preset" };
+      }
+    }
+    if (result.mode === "out") continue;
+    if (result.mode === "unmatched" || result.items.length === 0) {
+      quickMealUnmatched += 1;
+      // Reminder line so the vague meal still shows up on the list
+      rawLines.push({
+        name: note,
+        quantity: null,
+        unit: null,
+        note: "Quick meal — add what you need",
+      });
+      continue;
+    }
+    quickMealResolved += 1;
+    for (const item of result.items) {
+      rawLines.push({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        note: `For ${note}`,
       });
     }
   }
@@ -220,7 +269,9 @@ export async function generateShoppingList(weekStartIso?: string) {
   return {
     listId: list.id,
     itemCount: rows.length,
-    mealCount: cookSlots.length,
+    mealCount: cookSlots.length + quickMealSlots.length,
+    quickMealResolved,
+    quickMealUnmatched,
   };
 }
 

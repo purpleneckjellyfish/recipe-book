@@ -167,8 +167,9 @@ export function HouseholdControls({
       <div className="surface rounded-[1.5rem] p-5">
         <h2 className="font-display text-xl font-bold">Invite codes</h2>
         <p className="mt-1 text-sm text-[var(--ink-soft)]">
-          Or share a code — they sign up (or sign in), then paste it below to
-          join this kitchen.
+          Share a code so someone can create an account and join this kitchen at{" "}
+          <code className="text-xs">/signup</code>. You can also add a member
+          directly below with email and password.
         </p>
         {isOwner ? (
           <button
@@ -186,9 +187,14 @@ export function HouseholdControls({
           </button>
         ) : null}
         {inviteCode ? (
-          <p className="mt-3 rounded-xl bg-[var(--leaf-soft)] px-3 py-2 font-mono text-sm">
-            New code: <strong>{inviteCode}</strong>
-          </p>
+          <div className="mt-3 space-y-1 rounded-xl bg-[var(--leaf-soft)] px-3 py-2 text-sm">
+            <p className="font-mono">
+              Code: <strong>{inviteCode}</strong>
+            </p>
+            <p className="text-xs text-[var(--ink-soft)] break-all">
+              Link: /signup?invite={inviteCode}
+            </p>
+          </div>
         ) : null}
         {invites.length > 0 ? (
           <ul className="mt-3 space-y-1 text-sm">

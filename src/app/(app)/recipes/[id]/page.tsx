@@ -134,7 +134,14 @@ export default async function RecipeDetailPage({
         <div className="surface animate-rise animate-rise-delay-1 rounded-[1.75rem] p-5 sm:p-7">
           <ServingScaler
             baseServings={recipe.servings}
-            ingredients={recipe.ingredients}
+            ingredients={recipe.ingredients.map((ing) => ({
+              id: ing.id,
+              quantity:
+                ing.quantity == null ? null : Number(ing.quantity.toString()),
+              unit: ing.unit,
+              name: ing.name,
+              note: ing.note,
+            }))}
           />
           <div className="mt-4">
             <ReparseIngredientsButton recipeId={recipe.id} />

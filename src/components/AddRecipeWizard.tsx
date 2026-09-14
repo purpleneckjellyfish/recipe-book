@@ -228,7 +228,8 @@ export function AddRecipeWizard({
       {mode === "url" ? (
         <form onSubmit={loadUrl} className="space-y-3">
           <p className="text-sm text-[var(--ink-soft)]">
-            Works with Good Food, BBC Food, and most sites that publish recipe
+            Works with Good Food, BBC Food, Gousto, and most sites that publish
+            recipe structured data.
             data — we pull the photo too.
           </p>
           <input

@@ -12,11 +12,11 @@ export default async function HomePage() {
       <header className="flex items-center justify-between">
         <p className="font-display text-xl font-bold tracking-tight">Recipe Book</p>
         <div className="flex gap-2">
-          <Link href="/login" className="btn btn-ghost text-sm">
+          <Link href="/login" className="btn btn-primary text-sm">
             Sign in
           </Link>
-          <Link href="/signup" className="btn btn-primary text-sm">
-            Get started
+          <Link href="/signup" className="btn btn-ghost text-sm">
+            Have an invite?
           </Link>
         </div>
       </header>
@@ -33,11 +33,11 @@ export default async function HomePage() {
             to come.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/signup" className="btn btn-primary">
-              Create your kitchen
+            <Link href="/login" className="btn btn-primary">
+              Sign in
             </Link>
-            <Link href="/login" className="btn btn-ghost">
-              I already have an account
+            <Link href="/signup" className="btn btn-ghost">
+              Join with an invite
             </Link>
           </div>
         </div>

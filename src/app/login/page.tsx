@@ -75,9 +75,9 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-[var(--ink-soft)]">
-          New here?{" "}
+          Have an invite code?{" "}
           <Link href="/signup" className="font-semibold text-[var(--leaf-deep)]">
-            Create an account
+            Join a kitchen
           </Link>
         </p>
       </div>
