@@ -116,8 +116,9 @@ export function PlanClient({
         <section className="surface animate-rise animate-rise-delay-1 rounded-[1.5rem] p-4 sm:p-5">
           <h2 className="font-display text-xl font-bold">Auto-fill blanks</h2>
           <p className="mt-1 text-sm text-[var(--ink-soft)]">
-            Fills unpinned empty slots. Skips recipes used in the last N weeks
-            unless marked OK to repeat.
+            Fills unpinned empty slots from Main and Soup only. “Avoid last N
+            weeks” skips dinners already cooked recently (set to 0 to allow
+            repeats like roast chicken again).
           </p>
           <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-end">
             <div className="grid grid-cols-2 gap-3 sm:flex sm:items-end sm:gap-3">

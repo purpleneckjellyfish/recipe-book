@@ -1,4 +1,5 @@
 import type { Recipe, RecipeRating, RecipeTag, Tag, Category } from "@prisma/client";
+import { PLANNING_CATEGORY_SLUGS } from "@/lib/categories";
 
 type RecipeCandidate = Recipe & {
   ratings: RecipeRating[];
@@ -13,6 +14,14 @@ export type FillConstraints = {
   avoidLastWeeks?: number; // default 1
 };
 
+const PLAN_SLUGS = new Set<string>(PLANNING_CATEGORY_SLUGS);
+
+/** Evening-plan pool: Main + Soup only — never cakes, desserts, sides, etc. */
+export function isPlanMealRecipe(r: RecipeCandidate) {
+  const slug = r.category?.slug?.toLowerCase();
+  return !!slug && PLAN_SLUGS.has(slug);
+}
+
 function avgRating(r: RecipeCandidate) {
   if (!r.ratings.length) return 3; // neutral mid weight
   return r.ratings.reduce((s, x) => s + x.score, 0) / r.ratings.length;
@@ -20,11 +29,8 @@ function avgRating(r: RecipeCandidate) {
 
 function hasTag(r: RecipeCandidate, needles: string[]) {
   const hay = [
-    r.category?.name || "",
-    r.category?.slug || "",
     ...r.tags.map((t) => t.tag.name),
     ...r.tags.map((t) => t.tag.slug),
-    r.title,
   ]
     .join(" ")
     .toLowerCase();
@@ -62,8 +68,11 @@ export function autoFillRecipes(opts: {
   let vegNeeded = opts.constraints.vegetarian ?? 0;
   let fishNeeded = opts.constraints.fish ?? 0;
 
+  // Hard gate: only Main / Soup (matches Library “planning” shortcut).
+  const mealPool = opts.recipes.filter(isPlanMealRecipe);
+
   const eligible = () =>
-    opts.recipes.filter((r) => {
+    mealPool.filter((r) => {
       if (picked.includes(r.id) || opts.alreadyPickedIds.has(r.id)) return false;
       if (avoidWeeks > 0 && opts.usedRecentlyIds.has(r.id) && !r.allowWeeklyRepeat) {
         return false;

@@ -57,6 +57,8 @@ export async function createRecipe(formData: FormData) {
     const suggestion = await suggestRecipeMeta({
       title,
       description,
+      prepMinutes,
+      cookMinutes,
       ingredients: ingredients.map((i) => {
         const qty = i.quantity != null ? String(i.quantity) : "";
         const unit = i.unit || "";
@@ -294,6 +296,8 @@ export async function suggestRecipeOrganisation(recipeId: string) {
   const suggestion = await suggestRecipeMeta({
     title: recipe.title,
     description: recipe.description,
+    prepMinutes: recipe.prepMinutes,
+    cookMinutes: recipe.cookMinutes,
     ingredients: recipe.ingredients.map((i) => {
       const qty = i.quantity != null ? String(i.quantity) : "";
       const unit = i.unit || "";

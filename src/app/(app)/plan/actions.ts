@@ -11,6 +11,7 @@ import {
   weekDates,
 } from "@/lib/dates";
 import { autoFillRecipes, type FillConstraints } from "@/lib/meal-fill";
+import { PLANNING_CATEGORY_SLUGS } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/session";
 
@@ -103,7 +104,10 @@ export async function loadWeekPlan(weekStartIso?: string) {
 
   const { plan, mealTypes } = await getOrCreatePlan(household.id, weekStart);
   const recipes = await prisma.recipe.findMany({
-    where: { householdId: household.id },
+    where: {
+      householdId: household.id,
+      category: { slug: { in: [...PLANNING_CATEGORY_SLUGS] } },
+    },
     include: {
       category: true,
       tags: { include: { tag: true } },
@@ -327,7 +331,10 @@ export async function autoFillWeek(opts: {
   );
 
   const recipes = await prisma.recipe.findMany({
-    where: { householdId: household.id },
+    where: {
+      householdId: household.id,
+      category: { slug: { in: [...PLANNING_CATEGORY_SLUGS] } },
+    },
     include: {
       ratings: true,
       tags: { include: { tag: true } },
@@ -342,13 +349,33 @@ export async function autoFillWeek(opts: {
     avoidLastWeeks,
   };
 
-  const ids = autoFillRecipes({
+  let ids = autoFillRecipes({
     recipes,
     usedRecentlyIds: usedRecently,
     alreadyPickedIds: alreadyPicked,
     slotsToFill: fillable.length,
     constraints,
   });
+
+  // Small libraries: if “avoid last weeks” leaves too few Main/Soup options,
+  // fill the rest from that same pool (still never cakes/desserts).
+  if (ids.length < fillable.length) {
+    const already = new Set([...alreadyPicked, ...ids]);
+    const more = autoFillRecipes({
+      recipes,
+      usedRecentlyIds: new Set(),
+      alreadyPickedIds: already,
+      slotsToFill: fillable.length - ids.length,
+      constraints: { ...constraints, avoidLastWeeks: 0 },
+    });
+    ids = [...ids, ...more];
+  }
+
+  if (fillable.length > 0 && ids.length === 0) {
+    throw new Error(
+      "No Main or Soup recipes to fill with — tag dinners as Main (or Soup) in the library first.",
+    );
+  }
 
   for (let i = 0; i < fillable.length; i++) {
     const recipeId = ids[i];
@@ -432,7 +459,10 @@ export async function refreshSlotRecipe(slotId: string) {
   if (slot.recipeId) alreadyPicked.add(slot.recipeId);
 
   const recipes = await prisma.recipe.findMany({
-    where: { householdId: household.id },
+    where: {
+      householdId: household.id,
+      category: { slug: { in: [...PLANNING_CATEGORY_SLUGS] } },
+    },
     include: {
       ratings: true,
       tags: { include: { tag: true } },
@@ -464,7 +494,11 @@ export async function refreshSlotRecipe(slotId: string) {
   }
 
   const nextId = ids[0];
-  if (!nextId) throw new Error("No other recipes available to cycle to");
+  if (!nextId) {
+    throw new Error(
+      "No other Main/Soup recipes to cycle to — check library types.",
+    );
+  }
 
   await prisma.mealPlanSlot.update({
     where: { id: slot.id },

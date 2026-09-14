@@ -34,6 +34,8 @@ export async function importFromUrl(url: string): Promise<ImportDraft> {
     ingredients: scraped.ingredients,
     steps: scraped.steps,
     description: scraped.description,
+    prepMinutes: scraped.prepMinutes,
+    cookMinutes: scraped.cookMinutes,
   });
 
   const { household } = await requireHousehold();
@@ -199,6 +201,8 @@ export async function suggestTagsForRecipe(recipeId: string) {
   const suggestion = await suggestRecipeMeta({
     title: recipe.title,
     description: recipe.description,
+    prepMinutes: recipe.prepMinutes,
+    cookMinutes: recipe.cookMinutes,
     ingredients: recipe.ingredients.map((i) =>
       [i.quantity?.toString(), i.unit, i.name].filter(Boolean).join(" "),
     ),

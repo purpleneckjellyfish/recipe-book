@@ -41,6 +41,7 @@ Return ONLY valid JSON. No markdown.
 TAGS — use ONLY labels from this list (lowercase). Pick 2–6 that clearly fit; skip weak guesses:
 ${CANONICAL_TAGS.join(", ")}.
 Do not invent new tags. Prefer dietary + cooking-style tags that help meal planning.
+"speedy" ONLY when prepMinutes + cookMinutes is under 20 combined. Never tag speedy if times are missing or total is 20+.
 
 VEG PORTIONS (vegPortions) — integer 0–5 for ONE typical adult serving toward UK 5-a-day:
 - Count vegetables and fruit only.
@@ -123,10 +124,37 @@ export function normalizeSuggestedTags(raw: string[]): string[] {
   return [...out];
 }
 
-function parseMeta(parsed: Record<string, unknown>): AiSuggestion {
+/** Speedy = prep + cook under 20 minutes; drop it otherwise (or if times unknown). */
+export function applySpeedyTagRule(
+  tags: string[],
+  prepMinutes?: number | null,
+  cookMinutes?: number | null,
+): string[] {
+  const hasPrep = prepMinutes != null && Number.isFinite(prepMinutes);
+  const hasCook = cookMinutes != null && Number.isFinite(cookMinutes);
+  if (!hasPrep && !hasCook) {
+    return tags.filter((t) => t !== "speedy");
+  }
+  const total = (hasPrep ? Number(prepMinutes) : 0) + (hasCook ? Number(cookMinutes) : 0);
+  if (total >= 20) {
+    return tags.filter((t) => t !== "speedy");
+  }
+  return tags;
+}
+
+function parseMeta(
+  parsed: Record<string, unknown>,
+  times?: { prepMinutes?: number | null; cookMinutes?: number | null },
+): AiSuggestion {
   const rawTags = Array.isArray(parsed.tags) ? parsed.tags.map(String) : [];
+  const prep =
+    times?.prepMinutes ??
+    (typeof parsed.prepMinutes === "number" ? parsed.prepMinutes : null);
+  const cook =
+    times?.cookMinutes ??
+    (typeof parsed.cookMinutes === "number" ? parsed.cookMinutes : null);
   return {
-    tags: normalizeSuggestedTags(rawTags),
+    tags: applySpeedyTagRule(normalizeSuggestedTags(rawTags), prep, cook),
     categoryGuess: parsed.categoryGuess ? String(parsed.categoryGuess) : null,
     vegPortions:
       typeof parsed.vegPortions === "number"
@@ -144,6 +172,8 @@ export async function suggestRecipeMeta(input: {
   ingredients: string[];
   steps: string[];
   description?: string | null;
+  prepMinutes?: number | null;
+  cookMinutes?: number | null;
 }): Promise<AiSuggestion | null> {
   if (!apiConfig().key) return null;
 
@@ -164,6 +194,8 @@ export async function suggestRecipeMeta(input: {
               rules: {
                 vegPortions:
                   "0-5 per serving; exclude all potatoes/sweet potatoes",
+                speedy:
+                  "only if prepMinutes + cookMinutes is under 20 combined",
               },
               schema: {
                 tags: ["string — only from allowedTags"],
@@ -179,7 +211,10 @@ export async function suggestRecipeMeta(input: {
     if (!json) return null;
     const content = json.choices?.[0]?.message?.content;
     if (!content) return null;
-    return parseMeta(JSON.parse(content));
+    return parseMeta(JSON.parse(content), {
+      prepMinutes: input.prepMinutes,
+      cookMinutes: input.cookMinutes,
+    });
   } catch (err) {
     console.error("AI suggest failed", err);
     return null;
@@ -228,13 +263,17 @@ title, description, servings, prepMinutes, cookMinutes, ingredients (string arra
   const content = json.choices?.[0]?.message?.content;
   if (!content) return null;
   const parsed = JSON.parse(content);
+  const prepMinutes =
+    typeof parsed.prepMinutes === "number" ? parsed.prepMinutes : null;
+  const cookMinutes =
+    typeof parsed.cookMinutes === "number" ? parsed.cookMinutes : null;
   return {
-    ...parseMeta(parsed),
+    ...parseMeta(parsed, { prepMinutes, cookMinutes }),
     title: parsed.title ? String(parsed.title) : "Imported recipe",
     description: parsed.description ? String(parsed.description) : null,
     servings: typeof parsed.servings === "number" ? parsed.servings : null,
-    prepMinutes: typeof parsed.prepMinutes === "number" ? parsed.prepMinutes : null,
-    cookMinutes: typeof parsed.cookMinutes === "number" ? parsed.cookMinutes : null,
+    prepMinutes,
+    cookMinutes,
     ingredients: Array.isArray(parsed.ingredients)
       ? parsed.ingredients.map(String)
       : [],

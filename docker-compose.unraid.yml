@@ -36,5 +36,7 @@ services:
       IMPORT_API_BASE: https://api.mistral.ai/v1
       IMPORT_MODEL: mistral-small-latest
       IMPORT_VISION_MODEL: pixtral-12b-2409
+      BACKUPS_DIR: /data/backups
     volumes:
       - /mnt/user/appdata/recipe-book/uploads:/data/uploads
+      - /mnt/user/appdata/recipe-book/backups:/data/backups

@@ -67,19 +67,23 @@ export function AppNav({
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-                link.match(pathname)
-                  ? "bg-[var(--leaf-deep)] text-white"
-                  : "text-[var(--ink-soft)] hover:bg-white/60 hover:text-[var(--ink)]"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {links.map((link) => {
+            const active = link.match(pathname);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "is-selected"
+                    : "text-[var(--ink-soft)] hover:bg-white/60 hover:text-[var(--ink)]"
+                }`}
+                aria-current={active ? "page" : undefined}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -138,7 +142,7 @@ export function AppNav({
                     href={link.href}
                     className={`rounded-2xl px-4 py-3.5 text-base font-semibold touch-manipulation ${
                       active
-                        ? "bg-[var(--leaf-deep)] text-white"
+                        ? "is-selected"
                         : "text-[var(--ink)] active:bg-[var(--mist)]"
                     }`}
                     aria-current={active ? "page" : undefined}
@@ -149,7 +153,7 @@ export function AppNav({
               })}
               <Link
                 href="/recipes/new"
-                className="mt-2 rounded-2xl bg-[var(--leaf-deep)] px-4 py-3.5 text-center text-base font-semibold text-white touch-manipulation"
+                className="is-selected mt-2 rounded-2xl px-4 py-3.5 text-center text-base font-semibold touch-manipulation"
               >
                 Add recipe
               </Link>

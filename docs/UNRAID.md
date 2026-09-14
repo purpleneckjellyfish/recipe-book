@@ -29,14 +29,16 @@ You only need to do the sign-in once.
 
 1. Open Unraid → **Shares** (or file browser).
 2. Under `appdata`, create a folder: `recipe-book`
-3. Inside it create two folders:
+3. Inside it create three folders:
    - `pg` ← database (the archive)
    - `uploads` ← recipe photos
+   - `backups` ← automatic JSON library snapshots (restore failsafe)
 
 Full paths will look like:
 
 - `/mnt/user/appdata/recipe-book/pg`
 - `/mnt/user/appdata/recipe-book/uploads`
+- `/mnt/user/appdata/recipe-book/backups`
 
 **Never delete these** when updating.
 
@@ -100,15 +102,27 @@ When we’ve pushed new code to GitHub and the Actions build is green:
 
 The new app image starts, runs database migrations if needed, and your archive is still there.
 
+If the **library looks empty** after an update: the database was almost certainly not wiped — you may have been looking at a different (empty) kitchen membership. The app now prefers the kitchen that still has recipes. Confirm `pg` / `uploads` volumes were not deleted, then refresh or sign in again with the same account.
+
 ---
 
 ## Step F — Optional but wise: backups
 
-In Unraid, include this path in your backup app (CA Backup / rclone / etc.):
+Recipe Book keeps **two** kinds of safety net:
+
+1. **Live data** — Postgres + photos:  
+   `/mnt/user/appdata/recipe-book/pg`  
+   `/mnt/user/appdata/recipe-book/uploads`
+2. **Library JSON snapshots** (restore even if the database is wiped):  
+   `/mnt/user/appdata/recipe-book/backups`
+
+Mount `backups` in compose (`BACKUPS_DIR=/data/backups`). The app writes a dated copy when you open Settings (once per day) and whenever you download or tap **Save backup on server**. Keep the last 14 days automatically.
+
+In Unraid, include this whole path in CA Backup / rclone:
 
 `/mnt/user/appdata/recipe-book/`
 
-That folder is your family archive.
+Also download a **.json backup** from Settings occasionally onto your phone or Google Drive — that’s the fastest way to re-import if you delete the library by mistake.
 
 ---
 

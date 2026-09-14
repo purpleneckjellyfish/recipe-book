@@ -24,6 +24,8 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://recipe:recipe@db:5432/recipe_book?schema=public
+      UPLOADS_DIR: /data/uploads
+      BACKUPS_DIR: /data/backups
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
@@ -31,7 +33,9 @@ services:
       - "3000:3000"
     volumes:
       - recipe_book_uploads:/data/uploads
+      - recipe_book_backups:/data/backups
 
 volumes:
   recipe_book_pg:
   recipe_book_uploads:
+  recipe_book_backups:

@@ -137,7 +137,6 @@ export function ShopClient({
     (i) => !i.softDeleted && (i.checked || i.alreadyHave),
   );
   const removed = items.filter((i) => i.softDeleted);
-  const shopModeItems = items.filter((i) => !i.softDeleted);
 
   const tabs = [
     { start: lastWeekStart, title: "Last week", dates: lastWeekLabel },
@@ -165,56 +164,66 @@ export function ShopClient({
         </header>
 
         <div className="shop-mode-list flex-1 overflow-y-auto px-3 py-3">
-          {shopModeItems.length === 0 ? (
-            <p className="px-2 py-8 text-center text-[var(--ink-soft)]">
-              Nothing on this list yet.
+          <div className="mx-auto max-w-lg space-y-6">
+            {active.length === 0 && gotIt.length === 0 ? (
+              <p className="px-2 py-8 text-center text-[var(--ink-soft)]">
+                Nothing on this list yet.
+              </p>
+            ) : null}
+
+            {active.length === 0 && gotIt.length > 0 ? (
+              <p className="rounded-2xl bg-[var(--mist)] px-4 py-3 text-center text-sm font-semibold text-[var(--leaf-deep)]">
+                All done — nice one.
+              </p>
+            ) : null}
+
+            {groupItemsByAisle(active).map(({ aisle, items: aisleItems }) => (
+              <section key={aisle.id} className="space-y-2">
+                <h2 className="px-1 text-xs font-bold uppercase tracking-[0.14em] text-[var(--leaf)]">
+                  {aisle.label}
+                  <span className="ml-2 font-medium normal-case tracking-normal text-[var(--ink-soft)]">
+                    ({aisleItems.length})
+                  </span>
+                </h2>
+                <ul className="overflow-hidden rounded-2xl border border-[var(--line)] bg-white divide-y divide-[var(--line)]">
+                  {aisleItems.map((item) => (
+                    <li key={item.id}>
+                      <ShopModeRow
+                        item={item}
+                        pending={pending}
+                        onToggle={() => run(() => toggleChecked(item.id))}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+
+            {gotIt.length > 0 ? (
+              <section className="space-y-2 opacity-60">
+                <h2 className="px-1 font-display text-lg font-bold text-[var(--ink-soft)]">
+                  Got it ({gotIt.length})
+                </h2>
+                <ul className="overflow-hidden rounded-2xl border border-[var(--line)] bg-white/50 divide-y divide-[var(--line)]">
+                  {gotIt.map((item) => (
+                    <li key={item.id}>
+                      <ShopModeRow
+                        item={item}
+                        pending={pending}
+                        done
+                        onToggle={() => run(() => toggleChecked(item.id))}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <p className="px-1 pb-4 text-center text-xs text-[var(--ink-soft)]">
+              {active.length} left · {gotIt.length} done
+              {"wakeLock" in navigator ? " · screen stays on" : ""}
             </p>
-          ) : (
-            <ul className="mx-auto max-w-lg divide-y divide-[var(--line)] overflow-hidden rounded-2xl border border-[var(--line)] bg-white">
-              {shopModeItems.map((item) => {
-                const done = item.checked || item.alreadyHave;
-                const qty =
-                  item.quantity == null || !shouldShowShopQuantity(item.name)
-                    ? null
-                    : formatQuantity(Number(item.quantity), item.unit);
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => run(() => toggleChecked(item.id))}
-                      className="flex w-full items-center gap-3 px-4 py-3.5 text-left touch-manipulation active:bg-[var(--mist)]"
-                    >
-                      <span
-                        className={`grid size-7 shrink-0 place-items-center rounded-md border-2 ${
-                          done
-                            ? "border-[var(--leaf-deep)] bg-[var(--leaf-deep)] text-white"
-                            : "border-[var(--line)] bg-white"
-                        }`}
-                        aria-hidden
-                      >
-                        {done ? "✓" : null}
-                      </span>
-                      <span
-                        className={`min-w-0 flex-1 text-[1.05rem] font-semibold leading-snug ${
-                          done ? "text-[var(--ink-soft)] line-through" : ""
-                        }`}
-                      >
-                        {qty ? (
-                          <span className="text-[var(--leaf-deep)]">{qty} </span>
-                        ) : null}
-                        {item.name}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <p className="mx-auto mt-4 max-w-lg px-1 text-center text-xs text-[var(--ink-soft)]">
-            {active.length} left · {gotIt.length} done
-            {"wakeLock" in navigator ? " · screen stays on" : ""}
-          </p>
+          </div>
         </div>
 
         {toast ? (
@@ -480,6 +489,55 @@ export function ShopClient({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ShopModeRow({
+  item,
+  pending,
+  done,
+  onToggle,
+}: {
+  item: Item;
+  pending: boolean;
+  done?: boolean;
+  onToggle: () => void;
+}) {
+  const qty =
+    item.quantity == null || !shouldShowShopQuantity(item.name)
+      ? null
+      : formatQuantity(Number(item.quantity), item.unit);
+
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={onToggle}
+      className="flex w-full items-center gap-3 px-4 py-3.5 text-left touch-manipulation active:bg-[var(--mist)]"
+    >
+      <span
+        className={`grid size-7 shrink-0 place-items-center rounded-md border-2 ${
+          done
+            ? "border-[var(--leaf-deep)] bg-[var(--leaf-deep)] text-white"
+            : "border-[var(--line)] bg-white"
+        }`}
+        aria-hidden
+      >
+        {done ? "✓" : null}
+      </span>
+      <span
+        className={`min-w-0 flex-1 text-[1.05rem] font-semibold leading-snug ${
+          done ? "text-[var(--ink-soft)] line-through" : ""
+        }`}
+      >
+        {qty && !done ? (
+          <span className="text-[var(--leaf-deep)]">{qty} </span>
+        ) : qty ? (
+          <span>{qty} </span>
+        ) : null}
+        {item.name}
+      </span>
+    </button>
   );
 }
 

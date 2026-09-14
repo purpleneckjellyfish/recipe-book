@@ -88,9 +88,12 @@ body::before {
   z-index: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Keep in @layer base so Tailwind colour utilities (e.g. text-white) can win. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 ::selection {
@@ -221,8 +224,9 @@ a {
   touch-action: manipulation;
 }
 
-/* Selected control: green plate + white label */
-.is-selected {
+/* Selected control: green plate + white label (beats link inherit) */
+.is-selected,
+a.is-selected {
   background: var(--leaf-deep) !important;
   color: #fff !important;
   border-color: var(--leaf-deep) !important;
