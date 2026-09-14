@@ -28,20 +28,18 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
+# Run as root so Unraid bind-mounted uploads/ are writable (host perms vary).
+# LAN home-server tradeoff; do not expose this container to the public internet.
 
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 
 # Full Prisma CLI (with transitive deps like `effect`) for migrate deploy at start.
 RUN npm install prisma@6.19.3 --omit=dev --no-save \
-  && npx prisma generate \
-  && chown -R nextjs:nodejs /app
+  && npx prisma generate
 
-USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "mkdir -p /data/uploads && npx prisma migrate deploy && node server.js"]
