@@ -45,7 +45,7 @@ export async function createRecipe(formData: FormData) {
   const steps = parseSteps(String(formData.get("steps") || ""));
   const tagNames = parseTags(formData);
 
-  // If type/tags/veg left blank and AI is configured, fill suggestions
+  // Auto-fill type / tags / veg from AI when those fields were left blank
   let resolvedCategoryId = categoryId;
   let resolvedVeg = vegPortions;
   let resolvedTags = tagNames;
@@ -57,7 +57,11 @@ export async function createRecipe(formData: FormData) {
     const suggestion = await suggestRecipeMeta({
       title,
       description,
-      ingredients: ingredients.map((i) => i.name),
+      ingredients: ingredients.map((i) => {
+        const qty = i.quantity != null ? String(i.quantity) : "";
+        const unit = i.unit || "";
+        return [qty, unit, i.name].filter(Boolean).join(" ").trim();
+      }),
       steps: steps.map((s) => s.body),
     });
     if (suggestion) {
@@ -258,6 +262,17 @@ export async function updateRecipeTags(recipeId: string, formData: FormData) {
   revalidatePath("/home");
 }
 
+/** AI reads the recipe and applies type, tags, and veg portions (excl. potatoes). */
+export async function autoOrganiseRecipe(recipeId: string) {
+  const draft = await suggestRecipeOrganisation(recipeId);
+  await applyRecipeOrganisation(recipeId, {
+    tags: draft.tags,
+    categoryId: draft.categoryId,
+    vegPortions: draft.vegPortions,
+  });
+  return draft;
+}
+
 /** AI-suggested tags / type / veg — returns values for the UI to review. */
 export async function suggestRecipeOrganisation(recipeId: string) {
   const { household } = await requireHousehold();
@@ -279,7 +294,11 @@ export async function suggestRecipeOrganisation(recipeId: string) {
   const suggestion = await suggestRecipeMeta({
     title: recipe.title,
     description: recipe.description,
-    ingredients: recipe.ingredients.map((i) => i.name),
+    ingredients: recipe.ingredients.map((i) => {
+      const qty = i.quantity != null ? String(i.quantity) : "";
+      const unit = i.unit || "";
+      return [qty, unit, i.name].filter(Boolean).join(" ").trim();
+    }),
     steps: recipe.steps.map((s) => s.body),
   });
   if (!suggestion) throw new Error("Could not get suggestions right now");

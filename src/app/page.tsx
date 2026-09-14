@@ -23,13 +23,13 @@ export default async function HomePage() {
 
       <section className="mt-16 grid flex-1 items-center gap-12 lg:mt-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="animate-rise">
-          <p className="chip mb-5">Household recipe archive</p>
+          <p className="chip mb-5">Household recipe library</p>
           <h1 className="font-display max-w-xl text-5xl font-bold leading-[1.05] tracking-tight text-[var(--ink)] sm:text-6xl">
             Recipe Book
           </h1>
           <p className="mt-5 max-w-lg text-lg leading-relaxed text-[var(--ink-soft)]">
             Keep every family favourite in one place. Plan the week from your
-            own recipes, build a shopping list, and share the archive for years
+            own recipes, build a shopping list, and share the library for years
             to come.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -61,7 +61,7 @@ export default async function HomePage() {
                 <p className="mt-2 font-display text-xl font-bold">12 items</p>
               </div>
               <div className="rounded-2xl bg-white/70 p-4">
-                <p className="text-xs text-[var(--ink-soft)]">Archive</p>
+                <p className="text-xs text-[var(--ink-soft)]">Library</p>
                 <p className="mt-2 font-display text-xl font-bold">Yours forever</p>
               </div>
             </div>

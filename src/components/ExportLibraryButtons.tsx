@@ -23,7 +23,7 @@ export function ExportLibraryButtons() {
 
   return (
     <div className="surface rounded-[1.5rem] p-5">
-      <h2 className="font-display text-xl font-bold">Family archive export</h2>
+      <h2 className="font-display text-xl font-bold">Family library export</h2>
       <p className="mt-1 text-sm text-[var(--ink-soft)]">
         Download the whole library as CSV or a printable PDF pack — portable
         without the app.
@@ -57,7 +57,7 @@ export function ExportLibraryButtons() {
             startTransition(async () => {
               const pdf = await exportLibraryPdfBase64();
               downloadBase64(pdf.base64, pdf.filename, "application/pdf");
-              setMsg("PDF archive downloaded");
+              setMsg("PDF library downloaded");
             })
           }
         >

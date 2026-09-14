@@ -2,10 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  applyRecipeOrganisation,
-  suggestRecipeOrganisation,
-} from "@/app/(app)/recipes/actions";
+import { autoOrganiseRecipe } from "@/app/(app)/recipes/actions";
 
 export function SuggestOrganisationButton({
   recipeId,
@@ -17,94 +14,59 @@ export function SuggestOrganisationButton({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{
-    tags: string[];
-    categoryId: string | null;
-    categoryGuess: string | null;
-    vegPortions: number | null;
-  } | null>(null);
+  const [last, setLast] = useState<string | null>(null);
 
   if (!aiConfigured) {
     return (
       <p className="text-xs text-[var(--ink-soft)]">
-        Set <code>IMPORT_API_KEY</code> to re-suggest type, tags, and veg portions.
+        Set <code>IMPORT_API_KEY</code> so recipes can be auto-tagged and veg
+        portions counted.
       </p>
     );
   }
 
-  if (draft) {
-    return (
-      <div className="mt-3 space-y-3 rounded-2xl bg-[var(--mist)]/70 p-3 text-sm">
-        <p className="font-semibold">Suggested updates</p>
-        {draft.categoryGuess ? (
-          <p>
-            Type: <strong>{draft.categoryGuess}</strong>
-          </p>
-        ) : null}
-        {draft.vegPortions != null ? (
-          <p>
-            Of your 5: <strong>{draft.vegPortions}</strong>
-          </p>
-        ) : null}
-        {draft.tags.length ? (
-          <p>Tags: {draft.tags.join(", ")}</p>
-        ) : (
-          <p className="text-[var(--ink-soft)]">No tag suggestions</p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="btn btn-primary text-sm"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                await applyRecipeOrganisation(recipeId, {
-                  tags: draft.tags,
-                  categoryId: draft.categoryId,
-                  vegPortions: draft.vegPortions,
-                });
-                setDraft(null);
-                router.refresh();
-              })
-            }
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost text-sm"
-            disabled={pending}
-            onClick={() => setDraft(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mt-3">
+    <div className="mt-3 space-y-2">
       <button
         type="button"
-        className="btn btn-ghost text-sm"
+        className="btn btn-primary text-sm"
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
             setError(null);
+            setLast(null);
             try {
-              const result = await suggestRecipeOrganisation(recipeId);
-              setDraft(result);
+              const result = await autoOrganiseRecipe(recipeId);
+              const bits = [
+                result.categoryGuess ? `type ${result.categoryGuess}` : null,
+                result.tags.length ? `${result.tags.length} tags` : null,
+                result.vegPortions != null
+                  ? `${result.vegPortions} of 5 veg`
+                  : null,
+              ].filter(Boolean);
+              setLast(
+                bits.length
+                  ? `Updated: ${bits.join(" · ")}`
+                  : "AI had nothing clear to add",
+              );
+              router.refresh();
             } catch (e) {
-              setError(e instanceof Error ? e.message : "Suggest failed");
+              setError(e instanceof Error ? e.message : "Auto-tag failed");
             }
           })
         }
       >
-        {pending ? "Asking AI…" : "Suggest type & tags"}
+        {pending ? "Reading recipe…" : "Auto-tag with AI"}
       </button>
+      <p className="text-xs text-[var(--ink-soft)]">
+        Applies a fixed set of useful tags and counts veg/fruit portions per
+        serving (potatoes excluded).
+      </p>
+      {last ? (
+        <p className="text-xs font-medium text-[var(--leaf-deep)]">{last}</p>
+      ) : null}
       {error ? (
-        <p className="mt-2 text-xs text-[var(--bloom)]">{error}</p>
+        <p className="text-xs text-[var(--bloom)]">{error}</p>
       ) : null}
     </div>
   );

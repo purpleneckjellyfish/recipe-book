@@ -176,7 +176,7 @@ export default async function LibraryPage({
     <div className="space-y-8">
       <section className="animate-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="chip mb-3">Family archive</p>
+          <p className="chip mb-3">Family library</p>
           <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
             Library
           </h1>
@@ -332,7 +332,7 @@ export default async function LibraryPage({
             </p>
           ) : (
             <div className="surface rounded-[1.75rem] px-6 py-14 text-center">
-              <p className="font-display text-2xl font-bold">Your archive is empty</p>
+              <p className="font-display text-2xl font-bold">Your library is empty</p>
               <p className="mx-auto mt-2 max-w-md text-[var(--ink-soft)]">
                 Add from a URL, a photo, or type one in — cakes and preserves
                 welcome, not just dinners.

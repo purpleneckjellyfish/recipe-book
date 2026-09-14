@@ -79,7 +79,7 @@ export function AddRecipeWizard({
     return (
       <div className="space-y-4">
         <div className="rounded-2xl bg-[var(--leaf-soft)]/60 px-4 py-3 text-sm">
-          Review the draft, tweak tags, then save into your household archive.
+          Review the draft, tweak tags, then save into your recipe library.
         </div>
         <form action={saveImportDraft} className="space-y-4">
           <input type="hidden" name="sourceUrl" value={draft.sourceUrl} />
@@ -93,7 +93,7 @@ export function AddRecipeWizard({
                 className="h-44 w-full object-cover"
               />
               <p className="bg-white/70 px-3 py-2 text-xs text-[var(--ink-soft)]">
-                Photo from the source — saved into your archive when you confirm.
+                Photo from the source — saved into your library when you confirm.
               </p>
             </div>
           ) : null}

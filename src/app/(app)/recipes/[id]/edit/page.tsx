@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { RecipeForm } from "@/components/RecipeForm";
+import { CANONICAL_TAGS } from "@/lib/ai-import";
 import { formatQuantity } from "@/lib/scale";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/session";
@@ -33,6 +34,10 @@ export default async function EditRecipePage({
 
   if (!recipe) notFound();
 
+  const tagOptions = [
+    ...new Set([...CANONICAL_TAGS, ...tags.map((t) => t.name)]),
+  ];
+
   const ingredientsText = recipe.ingredients
     .map((ing) => {
       const qty =
@@ -57,7 +62,7 @@ export default async function EditRecipePage({
           mode="edit"
           recipeId={recipe.id}
           categories={categories}
-          tagOptions={tags.map((t) => t.name)}
+          tagOptions={tagOptions}
           defaults={{
             title: recipe.title,
             description: recipe.description,

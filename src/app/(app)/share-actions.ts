@@ -196,7 +196,7 @@ export async function exportLibraryPdfBase64() {
     font,
     color: rgb(0.25, 0.35, 0.3),
   });
-  cover.drawText(`${recipes.length} recipes · family archive export`, {
+  cover.drawText(`${recipes.length} recipes · library export`, {
     x: 48,
     y: 650,
     size: 12,

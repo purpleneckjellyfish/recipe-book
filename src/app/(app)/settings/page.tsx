@@ -40,7 +40,7 @@ export default async function SettingsPage() {
           Settings
         </h1>
         <p className="mt-2 max-w-xl text-[var(--ink-soft)]">
-          Household, shopping habits, meal types, and archive export — kept in
+          Household, shopping habits, meal types, and library export — kept in
           one place so the rest of the app stays tidy.
         </p>
       </section>

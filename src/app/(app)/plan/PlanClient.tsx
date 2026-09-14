@@ -8,6 +8,7 @@ import {
   clearUnpinned,
   markBatchCovers,
   refreshSlotRecipe,
+  setSlotNote,
   setSlotRecipe,
   setSlotStatus,
   togglePin,
@@ -30,6 +31,7 @@ type Slot = {
   recipeId: string | null;
   servings: number | null;
   cookSlotId: string | null;
+  notes: string | null;
   mealType: { id: string; name: string };
   recipe: { id: string; title: string; servings: number } | null;
 };
@@ -52,6 +54,7 @@ export function PlanClient({
   const [batchCookId, setBatchCookId] = useState<string | null>(null);
   const [batchTargets, setBatchTargets] = useState<string[]>([]);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   const days = useMemo(
     () =>
@@ -65,7 +68,7 @@ export function PlanClient({
     (s) =>
       s.status === "SKIP" ||
       s.status === "LEFTOVER" ||
-      (s.status === "RECIPE" && s.recipeId),
+      (s.status === "RECIPE" && (!!s.recipeId || !!s.notes?.trim())),
   ).length;
   const totalSlots = slots.length || 1;
   const weekComplete = filledCount >= totalSlots && totalSlots > 0;
@@ -93,7 +96,7 @@ export function PlanClient({
           <p className="mt-2 max-w-xl text-[var(--ink-soft)]">
             {weekComplete
               ? "Your week at a glance — tap a day to change it."
-              : "Pin favourites, mark eating-out nights, then auto-fill from your archive."}
+              : "Pin favourites, jot quick meals like pasta, mark eating-out nights, then auto-fill the rest."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -326,13 +329,23 @@ export function PlanClient({
                   </div>
                 </div>
 
-                {daySlots.map((slot) => (
+                {daySlots.map((slot) => {
+                  const noteText = slot.notes?.trim() || "";
+                  const isNoteOnly = !!noteText && !slot.recipeId;
+                  const editing =
+                    editingSlotId === slot.id ||
+                    (!weekComplete && editingSlotId === slot.id);
+
+                  return (
                   <div key={slot.id} className="flex flex-1 flex-col gap-2">
                     {isSkip ? (
                       <button
                         type="button"
                         className="flex flex-1 flex-col justify-center rounded-2xl bg-[var(--mist)] px-2 py-3 text-left"
-                        onClick={() => setEditingSlotId(slot.id)}
+                        onClick={() => {
+                          setNoteDraft(slot.notes || "");
+                          setEditingSlotId(slot.id);
+                        }}
                       >
                         <p className="text-sm font-semibold text-[var(--ink-soft)]">
                           Out / takeaway
@@ -352,9 +365,10 @@ export function PlanClient({
                       <button
                         type="button"
                         className="flex flex-1 flex-col rounded-2xl bg-[var(--leaf-deep)] px-2.5 py-3 text-left text-[#f7fbf8] transition hover:brightness-110"
-                        onClick={() =>
-                          setEditingSlotId(isEditing ? null : slot.id)
-                        }
+                        onClick={() => {
+                          setNoteDraft(slot.notes || "");
+                          setEditingSlotId(isEditing ? null : slot.id);
+                        }}
                       >
                         <p className="text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
                           {slot.mealType.name}
@@ -366,21 +380,77 @@ export function PlanClient({
                           Tap to edit
                         </p>
                       </button>
+                    ) : isNoteOnly ? (
+                      <button
+                        type="button"
+                        className="flex flex-1 flex-col rounded-2xl border border-[var(--leaf)] bg-[var(--leaf-soft)]/50 px-2.5 py-3 text-left transition hover:bg-[var(--leaf-soft)]/80"
+                        onClick={() => {
+                          setNoteDraft(noteText);
+                          setEditingSlotId(isEditing ? null : slot.id);
+                        }}
+                      >
+                        <p className="font-display text-sm font-bold leading-snug text-[var(--ink)] sm:text-[0.95rem]">
+                          {noteText}
+                        </p>
+                        <p className="mt-auto pt-2 text-[0.65rem] text-[var(--ink-soft)]">
+                          Plan only · tap to edit
+                        </p>
+                      </button>
                     ) : (
                       <button
                         type="button"
                         className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--line)] bg-white/50 px-2 py-4 text-center"
-                        onClick={() => setEditingSlotId(slot.id)}
+                        onClick={() => {
+                          setNoteDraft("");
+                          setEditingSlotId(slot.id);
+                        }}
                       >
                         <p className="text-sm font-semibold text-[var(--ink-soft)]">
                           Empty
                         </p>
-                        <p className="text-xs text-[var(--ink-soft)]">Tap to add</p>
+                        <p className="text-xs text-[var(--ink-soft)]">
+                          Recipe or quick meal
+                        </p>
                       </button>
                     )}
 
-                    {isEditing || (!weekComplete && editingSlotId === slot.id) || editingSlotId === slot.id ? (
+                    {editing ? (
                       <div className="space-y-2 rounded-xl bg-white/80 p-2">
+                        <div>
+                          <label className="label">Quick meal (no recipe)</label>
+                          <form
+                            className="flex gap-2"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              run(async () => {
+                                await setSlotNote({
+                                  slotId: slot.id,
+                                  note: noteDraft,
+                                });
+                                setEditingSlotId(null);
+                              });
+                            }}
+                          >
+                            <input
+                              className="field text-sm"
+                              placeholder="e.g. Pasta, jacket potatoes…"
+                              value={noteDraft}
+                              onChange={(e) => setNoteDraft(e.target.value)}
+                              disabled={pending || isLeftover}
+                            />
+                            <button
+                              type="submit"
+                              className="btn btn-primary shrink-0 px-3 text-sm"
+                              disabled={pending || isLeftover}
+                            >
+                              Set
+                            </button>
+                          </form>
+                          <p className="mt-1 text-[0.65rem] text-[var(--ink-soft)]">
+                            Stays on the plan only — not added to the library or
+                            shopping list.
+                          </p>
+                        </div>
                         <select
                           className="field text-sm"
                           disabled={pending || isLeftover}
@@ -397,7 +467,7 @@ export function PlanClient({
                             });
                           }}
                         >
-                          <option value="">Choose recipe…</option>
+                          <option value="">Or choose a library recipe…</option>
                           {recipes.map((r) => (
                             <option key={r.id} value={r.id}>
                               {r.title}
@@ -457,6 +527,27 @@ export function PlanClient({
                               </button>
                             </>
                           ) : null}
+                          {(slot.recipeId || noteText) && !isSkip ? (
+                            <button
+                              type="button"
+                              className="rounded-full bg-[var(--mist)] px-3 py-2 text-xs font-bold touch-manipulation min-h-[2.5rem]"
+                              disabled={pending}
+                              onClick={() =>
+                                run(async () => {
+                                  await setSlotNote({ slotId: slot.id, note: "" });
+                                  await setSlotRecipe({
+                                    slotId: slot.id,
+                                    recipeId: null,
+                                    pinned: false,
+                                  });
+                                  setNoteDraft("");
+                                  setEditingSlotId(null);
+                                })
+                              }
+                            >
+                              Clear
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="rounded-full px-3 py-2 text-xs font-bold text-[var(--ink-soft)] touch-manipulation min-h-[2.5rem]"
@@ -468,7 +559,8 @@ export function PlanClient({
                       </div>
                     ) : null}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}

@@ -1,4 +1,4 @@
-/** Canonical archive categories — order is browse order on the library hub. */
+/** Canonical library categories — order is browse order on the library hub. */
 export const ARCHIVE_CATEGORIES = [
   {
     name: "Main",

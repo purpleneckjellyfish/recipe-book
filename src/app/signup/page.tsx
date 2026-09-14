@@ -32,7 +32,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Create your kitchen"
-      subtitle="Start a household recipe archive you can share with family."
+      subtitle="Start a household recipe library you can share with family."
     >
       <form onSubmit={onSubmit} className="space-y-4">
         <div>

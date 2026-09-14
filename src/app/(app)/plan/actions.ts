@@ -137,7 +137,12 @@ export async function setSlotRecipe(opts: {
     where: { id: slot.id },
     data: {
       recipeId: opts.recipeId,
-      status: opts.recipeId ? MealSlotStatus.RECIPE : slot.status === MealSlotStatus.SKIP ? MealSlotStatus.SKIP : MealSlotStatus.RECIPE,
+      notes: opts.recipeId ? null : slot.notes,
+      status: opts.recipeId
+        ? MealSlotStatus.RECIPE
+        : slot.status === MealSlotStatus.SKIP
+          ? MealSlotStatus.SKIP
+          : MealSlotStatus.RECIPE,
       pinned: opts.pinned ?? slot.pinned,
       servings: opts.servings ?? slot.servings,
       cookSlotId: null,
@@ -148,12 +153,64 @@ export async function setSlotRecipe(opts: {
   if (!opts.recipeId) {
     await prisma.mealPlanSlot.updateMany({
       where: { cookSlotId: slot.id },
-      data: { recipeId: null, status: MealSlotStatus.RECIPE, cookSlotId: null },
+      data: {
+        recipeId: null,
+        status: MealSlotStatus.RECIPE,
+        cookSlotId: null,
+        notes: null,
+      },
     });
   }
 
   revalidatePath("/plan");
   revalidatePath("/shop");
+}
+
+/** Free-text meal on the plan (e.g. pasta, jacket potatoes) — not a library recipe. */
+export async function setSlotNote(opts: { slotId: string; note: string }) {
+  const { household } = await requireHousehold();
+  const slot = await prisma.mealPlanSlot.findFirst({
+    where: { id: opts.slotId, mealPlan: { householdId: household.id } },
+  });
+  if (!slot) throw new Error("Slot not found");
+
+  const note = opts.note.trim().replace(/\s+/g, " ");
+  if (!note) {
+    await prisma.mealPlanSlot.update({
+      where: { id: slot.id },
+      data: {
+        notes: null,
+        recipeId: null,
+        cookSlotId: null,
+        status: MealSlotStatus.RECIPE,
+        pinned: false,
+      },
+    });
+  } else {
+    await prisma.mealPlanSlot.update({
+      where: { id: slot.id },
+      data: {
+        notes: note,
+        recipeId: null,
+        cookSlotId: null,
+        status: MealSlotStatus.RECIPE,
+        pinned: true,
+        servings: null,
+      },
+    });
+    await prisma.mealPlanSlot.updateMany({
+      where: { cookSlotId: slot.id },
+      data: {
+        recipeId: null,
+        status: MealSlotStatus.RECIPE,
+        cookSlotId: null,
+        notes: null,
+      },
+    });
+  }
+
+  revalidatePath("/plan");
+  revalidatePath("/home");
 }
 
 export async function setSlotStatus(opts: {
@@ -261,7 +318,8 @@ export async function autoFillWeek(opts: {
       !s.pinned &&
       s.status !== MealSlotStatus.SKIP &&
       s.status !== MealSlotStatus.LEFTOVER &&
-      !s.recipeId,
+      !s.recipeId &&
+      !s.notes?.trim(),
   );
 
   const alreadyPicked = new Set(
@@ -323,6 +381,7 @@ export async function clearUnpinned(weekStartIso: string) {
     data: {
       recipeId: null,
       cookSlotId: null,
+      notes: null,
       status: MealSlotStatus.RECIPE,
     },
   });
@@ -331,7 +390,7 @@ export async function clearUnpinned(weekStartIso: string) {
   revalidatePath("/shop");
 }
 
-/** Swap a day's recipe for another from the archive (unpinned / non-leftover). */
+/** Swap a day's recipe for another from the library (unpinned / non-leftover). */
 export async function refreshSlotRecipe(slotId: string) {
   const { household } = await requireHousehold();
   const slot = await prisma.mealPlanSlot.findFirst({

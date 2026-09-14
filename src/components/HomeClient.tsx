@@ -114,7 +114,7 @@ export function HomeClient({
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h2 className="font-display text-2xl font-bold">
-                  From your archive
+                  From your library
                 </h2>
                 <p className="text-sm text-[var(--ink-soft)]">
                   Random favourites — pin to next week, or save to try later.
@@ -153,7 +153,7 @@ export function HomeClient({
 
           <FeaturedSection
             title="From Good Food"
-            blurb="bbcgoodfood.com — fixed for this week. Archive, pin, or save to try."
+            blurb="bbcgoodfood.com — fixed for this week. Save to library, pin, or save to try."
             cards={goodFood}
             nextWeekDays={nextWeekDays}
           />
@@ -179,7 +179,7 @@ export function HomeClient({
               <p className="font-display text-xl font-bold">Nothing parked yet</p>
               <p className="mx-auto mt-2 max-w-md text-sm text-[var(--ink-soft)]">
                 On Ideas, tap <strong>Save to try</strong> on a featured recipe or
-                archive pick when you can’t fit it this week.
+                library pick when you can’t fit it this week.
               </p>
               <button
                 type="button"
@@ -431,12 +431,12 @@ function FeaturedCardView({
             onClick={() =>
               startTransition(async () => {
                 const id = await addFeaturedToArchive(card.sourceUrl);
-                setMsg("Saved to archive");
+                setMsg("Saved to library");
                 router.push(`/recipes/${id}`);
               })
             }
           >
-            Add to archive
+            Add to library
           </button>
           <button
             type="button"

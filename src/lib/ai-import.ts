@@ -11,10 +11,43 @@ export type AiSuggestion = {
   steps?: string[];
 };
 
-const SYSTEM = `You help organise home cooking recipes for a UK household app called Recipe Book.
+/** Controlled vocabulary — keeps household filters consistent. */
+export const CANONICAL_TAGS = [
+  "vegetarian",
+  "vegan",
+  "fish",
+  "chicken",
+  "meat",
+  "batch cooking",
+  "speedy",
+  "packups",
+  "freezer friendly",
+  "entertaining",
+  "one pot",
+  "slow cooker",
+  "pasta",
+  "curry",
+  "salad",
+  "soup",
+  "baking",
+  "comfort food",
+  "healthy",
+  "kid friendly",
+] as const;
+
+const SYSTEM = `You organise recipes for a UK household app called Recipe Book.
 Return ONLY valid JSON. No markdown.
-For tags prefer short practical labels: batch cooking, speedy, packups, entertaining, vegetarian, fish, vegan, freezer friendly.
-vegPortions is an integer 0-5 estimating vegetable/fruit portions toward UK 5-a-day for one typical serving.
+
+TAGS — use ONLY labels from this list (lowercase). Pick 2–6 that clearly fit; skip weak guesses:
+${CANONICAL_TAGS.join(", ")}.
+Do not invent new tags. Prefer dietary + cooking-style tags that help meal planning.
+
+VEG PORTIONS (vegPortions) — integer 0–5 for ONE typical adult serving toward UK 5-a-day:
+- Count vegetables and fruit only.
+- EXCLUDE potatoes, sweet potatoes, yams, chips, fries, mash from potato, and crisps.
+- Beans/pulses and salad leaves count; herbs in tiny amounts do not.
+- Estimate portions the eater gets in one serving (not the whole pan).
+
 categoryGuess one of: Main, Breakfast, Soup, Side, Dessert, Cakes & bakes, Preserves, Sauces & condiments, Drinks, Snack, or null.`;
 
 function apiConfig() {
@@ -49,9 +82,51 @@ async function chatCompletions(body: Record<string, unknown>, timeoutMs: number)
   return res.json();
 }
 
+const CANONICAL_LOOKUP = new Map(
+  CANONICAL_TAGS.map((t) => [t.toLowerCase(), t as string]),
+);
+
+/** Map free-text AI tags onto the household vocabulary. */
+export function normalizeSuggestedTags(raw: string[]): string[] {
+  const aliases: Record<string, string> = {
+    veggie: "vegetarian",
+    veg: "vegetarian",
+    "plant based": "vegan",
+    seafood: "fish",
+    salmon: "fish",
+    quick: "speedy",
+    fast: "speedy",
+    lunchbox: "packups",
+    "lunch box": "packups",
+    "meal prep": "batch cooking",
+    batch: "batch cooking",
+    freeze: "freezer friendly",
+    "freezable": "freezer friendly",
+    guests: "entertaining",
+    party: "entertaining",
+    "one-pot": "one pot",
+    onepot: "one pot",
+    "slow-cooker": "slow cooker",
+    crockpot: "slow cooker",
+    kids: "kid friendly",
+    children: "kid friendly",
+    "comfort": "comfort food",
+  };
+
+  const out = new Set<string>();
+  for (const item of raw) {
+    const key = item.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!key) continue;
+    const mapped = aliases[key] || CANONICAL_LOOKUP.get(key);
+    if (mapped) out.add(mapped);
+  }
+  return [...out];
+}
+
 function parseMeta(parsed: Record<string, unknown>): AiSuggestion {
+  const rawTags = Array.isArray(parsed.tags) ? parsed.tags.map(String) : [];
   return {
-    tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : [],
+    tags: normalizeSuggestedTags(rawTags),
     categoryGuess: parsed.categoryGuess ? String(parsed.categoryGuess) : null,
     vegPortions:
       typeof parsed.vegPortions === "number"
@@ -76,7 +151,7 @@ export async function suggestRecipeMeta(input: {
     const json = await chatCompletions(
       {
         model: process.env.IMPORT_MODEL || "gpt-4o-mini",
-        temperature: 0.2,
+        temperature: 0.1,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM },
@@ -85,8 +160,13 @@ export async function suggestRecipeMeta(input: {
             content: JSON.stringify({
               task: "suggest_tags_and_veg",
               recipe: input,
+              allowedTags: CANONICAL_TAGS,
+              rules: {
+                vegPortions:
+                  "0-5 per serving; exclude all potatoes/sweet potatoes",
+              },
               schema: {
-                tags: ["string"],
+                tags: ["string — only from allowedTags"],
                 categoryGuess: "string|null",
                 vegPortions: "number|null",
               },
@@ -129,7 +209,7 @@ export async function extractRecipeFromImage(
             {
               type: "text",
               text: `Extract this recipe photo into JSON with keys:
-title, description, servings, prepMinutes, cookMinutes, ingredients (string array), steps (string array), tags (string array), categoryGuess, vegPortions.`,
+title, description, servings, prepMinutes, cookMinutes, ingredients (string array), steps (string array), tags (only from: ${CANONICAL_TAGS.join(", ")}), categoryGuess, vegPortions (exclude potatoes).`,
             },
             {
               type: "image_url",

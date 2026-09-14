@@ -18,6 +18,7 @@ export default async function PlanPage({
     recipeId: s.recipeId,
     servings: s.servings,
     cookSlotId: s.cookSlotId,
+    notes: s.notes,
     mealType: { id: s.mealType.id, name: s.mealType.name },
     recipe: s.recipe
       ? { id: s.recipe.id, title: s.recipe.title, servings: s.recipe.servings }

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s · Recipe Book",
   },
   description:
-    "Your household recipe archive, meal planner, and shopping list — self-hosted and shared.",
+    "Your household recipe library, meal planner, and shopping list — self-hosted and shared.",
   applicationName: "Recipe Book",
   appleWebApp: {
     capable: true,
