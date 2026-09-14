@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { hashPassword } from "better-auth/crypto";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold, requireSession } from "@/lib/session";
@@ -8,7 +9,41 @@ import { requireHousehold, requireSession } from "@/lib/session";
 function revalidateSettings() {
   revalidatePath("/settings");
   revalidatePath("/household");
+  revalidatePath("/home");
+  revalidatePath("/library");
+  revalidatePath("/plan");
   revalidatePath("/shop");
+}
+
+/** Remove empty solo kitchens so invite/join lands people in the shared one. */
+async function abandonEmptyOwnedHouseholds(
+  userId: string,
+  keepHouseholdId: string,
+) {
+  const memberships = await prisma.householdMember.findMany({
+    where: {
+      userId,
+      role: "OWNER",
+      householdId: { not: keepHouseholdId },
+    },
+    include: {
+      household: {
+        include: {
+          _count: { select: { members: true, mealPlans: true } },
+        },
+      },
+    },
+  });
+
+  for (const m of memberships) {
+    const recipeCount = await prisma.recipe.count({
+      where: { householdId: m.householdId },
+    });
+    // Only auto-remove unused personal kitchens (just them, no recipes).
+    if (m.household._count.members <= 1 && recipeCount === 0) {
+      await prisma.household.delete({ where: { id: m.householdId } });
+    }
+  }
 }
 
 export async function createInvite() {
@@ -30,9 +65,11 @@ export async function createInvite() {
 
 export async function joinWithInvite(code: string) {
   const session = await requireSession();
+  const trimmed = code.trim();
+  if (!trimmed) throw new Error("Enter an invite code");
 
-  const invite = await prisma.householdInvite.findUnique({
-    where: { code: code.trim() },
+  const invite = await prisma.householdInvite.findFirst({
+    where: { code: { equals: trimmed, mode: "insensitive" } },
   });
   if (!invite) throw new Error("Invalid invite code");
   if (invite.expiresAt && invite.expiresAt < new Date()) {
@@ -57,9 +94,95 @@ export async function joinWithInvite(code: string) {
     });
   }
 
+  await abandonEmptyOwnedHouseholds(session.user.id, invite.householdId);
   revalidateSettings();
-  revalidatePath("/library");
   return invite.householdId;
+}
+
+/**
+ * Owner creates a login for someone in this kitchen (same recipe book).
+ * Prefer this over invite codes when you're setting up family on one device.
+ */
+export async function createHouseholdMember(opts: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  const { membership, household } = await requireHousehold();
+  if (membership.role !== "OWNER") {
+    throw new Error("Only owners can add household members");
+  }
+
+  const name = opts.name.trim();
+  const email = opts.email.trim().toLowerCase();
+  const password = opts.password;
+  if (!name) throw new Error("Name is required");
+  if (!email.includes("@")) throw new Error("Enter a valid email");
+  if (password.length < 8) throw new Error("Password must be at least 8 characters");
+
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+
+  if (existingUser) {
+    const already = await prisma.householdMember.findUnique({
+      where: {
+        householdId_userId: {
+          householdId: household.id,
+          userId: existingUser.id,
+        },
+      },
+    });
+    if (already) {
+      throw new Error("That person is already in this kitchen");
+    }
+    await prisma.householdMember.create({
+      data: {
+        householdId: household.id,
+        userId: existingUser.id,
+        role: "MEMBER",
+      },
+    });
+    await abandonEmptyOwnedHouseholds(existingUser.id, household.id);
+    revalidateSettings();
+    return { userId: existingUser.id, created: false };
+  }
+
+  const userId = nanoid();
+  const hashed = await hashPassword(password);
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.create({
+      data: {
+        id: userId,
+        name,
+        email,
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await tx.account.create({
+      data: {
+        id: nanoid(),
+        accountId: userId,
+        providerId: "credential",
+        userId,
+        password: hashed,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await tx.householdMember.create({
+      data: {
+        householdId: household.id,
+        userId,
+        role: "MEMBER",
+      },
+    });
+  });
+
+  revalidateSettings();
+  return { userId, created: true };
 }
 
 export async function renameHousehold(name: string) {

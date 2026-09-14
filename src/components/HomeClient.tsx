@@ -93,12 +93,16 @@ export function HomeClient({
               }}
               className={`rounded-xl px-3 py-3 text-center transition ${
                 active
-                  ? "bg-white shadow-sm"
+                  ? "is-selected shadow-sm"
                   : "text-[var(--ink-soft)] hover:text-[var(--ink)]"
               }`}
             >
-              <span className="block text-sm font-bold">{t.label}</span>
-              <span className="mt-0.5 block text-xs">{t.hint}</span>
+              <span className={`block text-sm font-bold ${active ? "text-white" : ""}`}>
+                {t.label}
+              </span>
+              <span className={`mt-0.5 block text-xs ${active ? "text-white/80" : ""}`}>
+                {t.hint}
+              </span>
             </button>
           );
         })}

@@ -6,6 +6,7 @@ import {
   addPantryStaple,
   addPinnedShopItem,
   addMealType,
+  createHouseholdMember,
   createInvite,
   joinWithInvite,
   removePantryStaple,
@@ -42,6 +43,9 @@ export function HouseholdControls({
   const [staple, setStaple] = useState("");
   const [pinName, setPinName] = useState("");
   const [mealName, setMealName] = useState("");
+  const [memberName, setMemberName] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberPassword, setMemberPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
   function refresh(fn: () => Promise<void>) {
@@ -80,9 +84,91 @@ export function HouseholdControls({
       ) : null}
 
       <div className="surface rounded-[1.5rem] p-5">
-        <h2 className="font-display text-xl font-bold">Invites</h2>
+        <h2 className="font-display text-xl font-bold">Household members</h2>
         <p className="mt-1 text-sm text-[var(--ink-soft)]">
-          Share a code so family can join this kitchen.
+          Add someone to this kitchen with their own login. They’ll see the same
+          recipes, plan, and shopping list.
+        </p>
+        {isOwner ? (
+          <form
+            className="mt-4 space-y-3"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              refresh(async () => {
+                const result = await createHouseholdMember({
+                  name: memberName,
+                  email: memberEmail,
+                  password: memberPassword,
+                });
+                setMemberName("");
+                setMemberEmail("");
+                setMemberPassword("");
+                setMsg(
+                  result.created
+                    ? "Member added — they can sign in with that email and password"
+                    : "Existing account linked to this kitchen",
+                );
+              });
+            }}
+          >
+            <div>
+              <label className="label" htmlFor="member-name">
+                Name
+              </label>
+              <input
+                id="member-name"
+                className="field"
+                value={memberName}
+                onChange={(e) => setMemberName(e.target.value)}
+                required
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="member-email">
+                Email
+              </label>
+              <input
+                id="member-email"
+                className="field"
+                type="email"
+                value={memberEmail}
+                onChange={(e) => setMemberEmail(e.target.value)}
+                required
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="member-password">
+                Password
+              </label>
+              <input
+                id="member-password"
+                className="field"
+                type="password"
+                minLength={8}
+                value={memberPassword}
+                onChange={(e) => setMemberPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+            <button className="btn btn-primary" disabled={pending} type="submit">
+              Add to this kitchen
+            </button>
+          </form>
+        ) : (
+          <p className="mt-3 text-sm text-[var(--ink-soft)]">
+            Only the kitchen owner can add members.
+          </p>
+        )}
+      </div>
+
+      <div className="surface rounded-[1.5rem] p-5">
+        <h2 className="font-display text-xl font-bold">Invite codes</h2>
+        <p className="mt-1 text-sm text-[var(--ink-soft)]">
+          Or share a code — they sign up (or sign in), then paste it below to
+          join this kitchen.
         </p>
         {isOwner ? (
           <button
@@ -120,8 +206,10 @@ export function HouseholdControls({
             e.preventDefault();
             refresh(async () => {
               await joinWithInvite(joinCode);
-              setMsg("Joined household");
+              setMsg("Joined kitchen — refreshing…");
               setJoinCode("");
+              router.push("/home");
+              router.refresh();
             });
           }}
         >

@@ -331,6 +331,95 @@ export async function clearUnpinned(weekStartIso: string) {
   revalidatePath("/shop");
 }
 
+/** Swap a day's recipe for another from the archive (unpinned / non-leftover). */
+export async function refreshSlotRecipe(slotId: string) {
+  const { household } = await requireHousehold();
+  const slot = await prisma.mealPlanSlot.findFirst({
+    where: { id: slotId, mealPlan: { householdId: household.id } },
+    include: { mealPlan: { include: { slots: true } } },
+  });
+  if (!slot) throw new Error("Slot not found");
+  if (slot.pinned) throw new Error("Unpin this day before refreshing");
+  if (slot.status === MealSlotStatus.SKIP || slot.status === MealSlotStatus.LEFTOVER) {
+    throw new Error("Can't refresh a skip or leftover day");
+  }
+
+  const weekStart = slot.mealPlan.weekStart;
+  const avoidLastWeeks = 1;
+  const usedRecently = new Set<string>();
+  for (let w = 1; w <= avoidLastWeeks; w++) {
+    const pastStart = addDays(weekStart, -7 * w);
+    const pastPlan = await prisma.mealPlan.findUnique({
+      where: {
+        householdId_weekStart: {
+          householdId: household.id,
+          weekStart: pastStart,
+        },
+      },
+      include: { slots: true },
+    });
+    for (const s of pastPlan?.slots || []) {
+      if (s.recipeId && s.status !== MealSlotStatus.SKIP) {
+        usedRecently.add(s.recipeId);
+      }
+    }
+  }
+
+  const alreadyPicked = new Set(
+    slot.mealPlan.slots
+      .filter((s) => s.recipeId && s.id !== slot.id)
+      .map((s) => s.recipeId as string),
+  );
+  if (slot.recipeId) alreadyPicked.add(slot.recipeId);
+
+  const recipes = await prisma.recipe.findMany({
+    where: { householdId: household.id },
+    include: {
+      ratings: true,
+      tags: { include: { tag: true } },
+      category: true,
+    },
+  });
+
+  let ids = autoFillRecipes({
+    recipes,
+    usedRecentlyIds: usedRecently,
+    alreadyPickedIds: alreadyPicked,
+    slotsToFill: 1,
+    constraints: { avoidLastWeeks },
+  });
+
+  // If nothing left under avoid rules, allow recent recipes (still not this week's others).
+  if (!ids[0]) {
+    ids = autoFillRecipes({
+      recipes,
+      usedRecentlyIds: new Set(),
+      alreadyPickedIds: new Set(
+        slot.mealPlan.slots
+          .filter((s) => s.recipeId && s.id !== slot.id)
+          .map((s) => s.recipeId as string),
+      ),
+      slotsToFill: 1,
+      constraints: { avoidLastWeeks: 0 },
+    });
+  }
+
+  const nextId = ids[0];
+  if (!nextId) throw new Error("No other recipes available to cycle to");
+
+  await prisma.mealPlanSlot.update({
+    where: { id: slot.id },
+    data: {
+      recipeId: nextId,
+      status: MealSlotStatus.RECIPE,
+      cookSlotId: null,
+    },
+  });
+
+  revalidatePath("/plan");
+  revalidatePath("/shop");
+}
+
 /** Pin a recipe onto a specific date in a week (defaults to next week from “today”). */
 export async function pinRecipeToDate(opts: {
   recipeId: string;

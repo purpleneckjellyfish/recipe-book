@@ -39,7 +39,8 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* Smooth scroll feels laggy on mobile browsers */
+  scroll-behavior: auto;
 }
 
 body {
@@ -54,6 +55,26 @@ body {
   font-family: var(--font-figtree), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+@media (max-width: 767px) {
+  body::before {
+    display: none;
+  }
+
+  .surface {
+    backdrop-filter: none;
+    background: rgba(244, 247, 245, 0.94);
+  }
+
+  .animate-rise,
+  .animate-rise-delay-1,
+  .animate-rise-delay-2,
+  .animate-rise-delay-3,
+  .animate-sink {
+    animation: none;
+  }
 }
 
 body::before {
@@ -185,7 +206,7 @@ a {
 }
 
 .app-main {
-  padding-bottom: calc(var(--mobile-tab-height) + var(--safe-bottom) + 1.25rem);
+  padding-bottom: calc(1.5rem + var(--safe-bottom));
 }
 
 @media (min-width: 768px) {
@@ -194,14 +215,33 @@ a {
   }
 }
 
-.mobile-tab-bar {
-  padding-bottom: var(--safe-bottom);
-}
-
 .touch-target {
   min-height: 2.75rem;
   min-width: 2.75rem;
   touch-action: manipulation;
+}
+
+/* Selected control: green plate + white label */
+.is-selected {
+  background: var(--leaf-deep) !important;
+  color: #fff !important;
+  border-color: var(--leaf-deep) !important;
+}
+
+.shop-mode-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+.shop-mode-list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 @keyframes rise-in {

@@ -10,10 +10,11 @@ export async function requireSession() {
 }
 
 export async function getActiveHousehold(userId: string) {
+  // Newest membership first so invite/join and “add member” land on the shared kitchen.
   const membership = await prisma.householdMember.findFirst({
     where: { userId },
     include: { household: true },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
   });
   return membership;
 }

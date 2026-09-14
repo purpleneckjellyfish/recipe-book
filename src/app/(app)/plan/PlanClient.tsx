@@ -7,6 +7,7 @@ import {
   autoFillWeek,
   clearUnpinned,
   markBatchCovers,
+  refreshSlotRecipe,
   setSlotRecipe,
   setSlotStatus,
   togglePin,
@@ -217,7 +218,7 @@ export function PlanClient({
                   key={s.id}
                   className={`cursor-pointer rounded-full px-3 py-2.5 text-sm font-medium touch-manipulation min-h-[2.5rem] ${
                     batchTargets.includes(s.id)
-                      ? "bg-[var(--leaf-deep)] text-white"
+                      ? "is-selected"
                       : "bg-white/70"
                   }`}
                 >
@@ -299,11 +300,30 @@ export function PlanClient({
                       })}
                     </p>
                   </div>
-                  {primary?.pinned ? (
-                    <span className="rounded-full bg-[var(--leaf-deep)] px-2 py-0.5 text-[0.65rem] font-bold text-white">
-                      Pin
-                    </span>
-                  ) : null}
+                  <div className="flex flex-col items-end gap-1">
+                    {primary?.pinned ? (
+                      <span className="rounded-full bg-[var(--leaf-deep)] px-2 py-0.5 text-[0.65rem] font-bold text-white">
+                        Pin
+                      </span>
+                    ) : null}
+                    {primary &&
+                    primary.status === "RECIPE" &&
+                    primary.recipeId &&
+                    !primary.pinned ? (
+                      <button
+                        type="button"
+                        className="rounded-full bg-white/90 px-2 py-1 text-[0.65rem] font-bold text-[var(--leaf-deep)] shadow-sm touch-manipulation"
+                        disabled={pending}
+                        title="Try a different recipe"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          run(() => refreshSlotRecipe(primary.id));
+                        }}
+                      >
+                        Refresh
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {daySlots.map((slot) => (
@@ -410,18 +430,32 @@ export function PlanClient({
                             {isSkip ? "Unskip" : "Skip / out"}
                           </button>
                           {slot.recipeId && !isLeftover && !isSkip ? (
-                            <button
-                              type="button"
-                              className="rounded-full bg-[var(--leaf-soft)] px-3 py-2 text-xs font-bold text-[var(--leaf-deep)] touch-manipulation min-h-[2.5rem]"
-                              disabled={pending}
-                              onClick={() => {
-                                setBatchCookId(slot.id);
-                                setBatchTargets([]);
-                                setEditingSlotId(null);
-                              }}
-                            >
-                              Batch
-                            </button>
+                            <>
+                              {!slot.pinned ? (
+                                <button
+                                  type="button"
+                                  className="rounded-full bg-[var(--leaf-soft)] px-3 py-2 text-xs font-bold text-[var(--leaf-deep)] touch-manipulation min-h-[2.5rem]"
+                                  disabled={pending}
+                                  onClick={() =>
+                                    run(() => refreshSlotRecipe(slot.id))
+                                  }
+                                >
+                                  Refresh
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className="rounded-full bg-[var(--leaf-soft)] px-3 py-2 text-xs font-bold text-[var(--leaf-deep)] touch-manipulation min-h-[2.5rem]"
+                                disabled={pending}
+                                onClick={() => {
+                                  setBatchCookId(slot.id);
+                                  setBatchTargets([]);
+                                  setEditingSlotId(null);
+                                }}
+                              >
+                                Batch
+                              </button>
+                            </>
                           ) : null}
                           <button
                             type="button"
