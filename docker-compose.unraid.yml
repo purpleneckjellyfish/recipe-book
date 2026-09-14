@@ -26,9 +26,11 @@ services:
       UPLOADS_DIR: /data/uploads
       # CHANGE ME (1): long random string — run on Mac: openssl rand -hex 32
       BETTER_AUTH_SECRET: replace-with-openssl-rand-hex-32
-      # CHANGE ME (2) and (3): your Unraid LAN IP, e.g. http://192.168.1.50:3000
-      BETTER_AUTH_URL: http://YOUR_UNRAID_IP:3000
-      NEXT_PUBLIC_APP_URL: http://YOUR_UNRAID_IP:3000
+      # CHANGE ME (2): public app URL — Cloudflare tunnel HTTPS if you use one
+      BETTER_AUTH_URL: https://recipes.yourdomain.com
+      NEXT_PUBLIC_APP_URL: https://recipes.yourdomain.com
+      # CHANGE ME (3): all browsers that may open the app (comma-separated, no spaces needed)
+      BETTER_AUTH_TRUSTED_ORIGINS: https://recipes.yourdomain.com,http://192.168.1.50:3000
       # CHANGE ME (4): same AI key as your Mac .env — needed for photo→recipe import
       IMPORT_API_KEY: replace-with-your-mistral-or-openai-key
       IMPORT_API_BASE: https://api.mistral.ai/v1

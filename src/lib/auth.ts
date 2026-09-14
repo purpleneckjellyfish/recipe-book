@@ -15,6 +15,18 @@ const DEFAULT_PANTRY = [
   "garlic",
 ];
 
+function originList(...values: Array<string | undefined>) {
+  const out = new Set<string>();
+  for (const value of values) {
+    if (!value) continue;
+    for (const part of value.split(",")) {
+      const trimmed = part.trim().replace(/\/$/, "");
+      if (trimmed) out.add(trimmed);
+    }
+  }
+  return [...out];
+}
+
 export async function bootstrapHousehold(userId: string, userName: string) {
   const existing = await prisma.householdMember.findFirst({
     where: { userId },
@@ -48,13 +60,18 @@ export async function bootstrapHousehold(userId: string, userName: string) {
   return household.id;
 }
 
+const trustedOrigins = originList(
+  process.env.BETTER_AUTH_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS,
+);
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
+  // Public URL when behind Cloudflare; LAN IP is fine for local-only.
   baseURL: process.env.BETTER_AUTH_URL,
-  trustedOrigins: [
-    process.env.BETTER_AUTH_URL,
-    process.env.NEXT_PUBLIC_APP_URL,
-  ].filter((v): v is string => Boolean(v)),
+  // Allow Cloudflare tunnel + LAN IP (comma-separated TRUSTED_ORIGINS).
+  trustedOrigins,
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
