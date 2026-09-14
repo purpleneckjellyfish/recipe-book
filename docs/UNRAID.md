@@ -52,14 +52,16 @@ BETTER_AUTH_SECRET=paste-a-long-random-string-here
 BETTER_AUTH_URL=https://recipes.yourdomain.com
 NEXT_PUBLIC_APP_URL=https://recipes.yourdomain.com
 
-# Optional AI (same as on your Mac)
-# IMPORT_API_KEY=
+# Optional AI (same as on your Mac) — needed for “import from photo”
+# IMPORT_API_KEY=your-key-here
 # IMPORT_API_BASE=https://api.mistral.ai/v1
 # IMPORT_MODEL=mistral-small-latest
 # IMPORT_VISION_MODEL=pixtral-12b-2409
 ```
 
 Use your real reverse-proxy URL if you have one. For a first test on the LAN only, you can use `http://TOWER_IP:3000` (replace with your Unraid IP).
+
+If your vars live **inside the compose file** (recommended for the paste-in stack), you can skip a separate `.env` — an empty `.env` is fine.
 
 Generate a secret on the Mac with:
 
