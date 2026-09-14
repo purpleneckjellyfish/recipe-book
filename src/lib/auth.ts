@@ -15,10 +15,15 @@ const DEFAULT_PANTRY = [
   "garlic",
 ];
 
-async function bootstrapHousehold(userId: string, userName: string) {
+export async function bootstrapHousehold(userId: string, userName: string) {
+  const existing = await prisma.householdMember.findFirst({
+    where: { userId },
+  });
+  if (existing) return existing.householdId;
+
   const householdName = `${userName.split(" ")[0]}'s kitchen`;
 
-  await prisma.household.create({
+  const household = await prisma.household.create({
     data: {
       name: householdName,
       members: {
@@ -40,10 +45,12 @@ async function bootstrapHousehold(userId: string, userName: string) {
       },
     },
   });
+  return household.id;
 }
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
+  baseURL: process.env.BETTER_AUTH_URL,
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
