@@ -35,6 +35,7 @@ export default async function PlanPage({
         servings: r.servings,
         vegPortions: r.vegPortions,
         allowWeeklyRepeat: r.allowWeeklyRepeat,
+        categoryName: r.category?.name ?? null,
       }))}
     />
   );

@@ -103,6 +103,7 @@ export async function loadWeekPlan(weekStartIso?: string) {
     : startOfWeek(toDateOnly(new Date()), household.weekStart);
 
   const { plan, mealTypes } = await getOrCreatePlan(household.id, weekStart);
+  // Plan picker: Main + Soup only (same pool auto-fill uses). Avoid-last-N is auto-fill only.
   const recipes = await prisma.recipe.findMany({
     where: {
       householdId: household.id,
